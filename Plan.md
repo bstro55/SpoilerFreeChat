@@ -150,18 +150,18 @@ SpoilerFreeChat/
 
 ---
 
-### Phase 3: Message Queueing (Week 3)
+### Phase 3: Message Queueing (Week 3) ✅ COMPLETE
 **Goal:** Delay messages based on offsets
 
-11. On message send, calculate delivery time per recipient
-12. Queue messages with `deliverAt` timestamp
-13. Implement 100ms interval to check queues
-14. Deliver messages when `deliverAt <= now`
-15. Handle immediate delivery for offset=0 users
-16. Order messages by server receive time (game-time ordering is future enhancement)
-17. Implement message buffer per room (~50 messages) for rejoin/refresh
+11. ✅ On message send, calculate delivery time per recipient
+12. ✅ Queue messages with `deliverAt` timestamp
+13. ✅ Implement 100ms interval to check queues
+14. ✅ Deliver messages when `deliverAt <= now`
+15. ✅ Handle immediate delivery for offset=0 users
+16. ✅ Order messages by server receive time (game-time ordering is future enhancement)
+17. ✅ Implement message buffer per room (~50 messages) for rejoin/refresh
 
-**Deliverable:** Messages arrive delayed appropriately
+**Deliverable:** Messages arrive delayed appropriately ✅ Tested and working!
 
 ---
 
@@ -175,6 +175,7 @@ SpoilerFreeChat/
 21. Input validation and XSS prevention
 22. Basic styling with Shadcn/UI
 23. Error handling and user feedback
+24. Consider: Require sync before messaging (popup/modal to sync when joining)
 
 **Deliverable:** Production-ready MVP
 

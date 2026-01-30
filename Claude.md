@@ -63,35 +63,77 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## Current State
 
-- **Phase**: Starting from scratch
-- **Tech stack**: To be determined
-- **Existing code**: None
-- **Dependencies**: None yet
+- **Phase**: Phase 3 Complete (Message Queueing)
+- **Tech stack**: React + Vite (frontend), Node.js + Express + Socket.IO (backend)
+- **Core feature working**: Messages are delayed based on user offsets!
+- **Next**: Phase 4 (Polish & Edge Cases)
 
-## Open Questions
+## Decisions Made
 
-These items need discussion before/during implementation:
-
-1. **Tech Stack** - Frontend framework, backend language, database, real-time solution
-2. **Deployment Platform** - Where to host (Vercel, Railway, Render, etc.)
-3. **Authentication** - How users identify themselves (anonymous, accounts, etc.)
-4. **Room Management** - How game rooms are created and discovered
-5. **Game Time Input** - Best UX for entering/updating game time
+| Question | Decision |
+|----------|----------|
+| Tech stack | React + Vite + Node.js + Express + Socket.IO |
+| Database | Skip for MVP, in-memory storage |
+| Authentication | Anonymous + nicknames for MVP |
+| Deployment | Koyeb (backend) + Vercel (frontend) - planned |
+| Sports support | Basketball only for MVP |
 
 ## Project Structure
 
-*To be updated as the project develops*
-
 ```
 SpoilerFreeChat/
-├── Claude.md          # This file - project documentation
-└── ...                # Structure TBD based on tech stack
+├── CLAUDE.md              # This file - project documentation
+├── Plan.md                # Detailed implementation plan
+├── frontend/
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── index.html
+│   └── src/
+│       ├── App.jsx
+│       ├── main.jsx
+│       ├── index.css
+│       ├── components/
+│       │   ├── ChatRoom.jsx
+│       │   ├── TimeSync.jsx
+│       │   └── JoinRoom.jsx
+│       ├── hooks/
+│       │   └── useSocket.js
+│       └── store/
+│           └── chatStore.js
+└── backend/
+    ├── package.json
+    ├── server.js
+    ├── .env
+    └── services/
+        ├── roomManager.js    # Room/user state management
+        ├── messageQueue.js   # Delay logic (Phase 3)
+        └── timeUtils.js      # Offset calculations
 ```
 
 ## Setup Instructions
 
-*To be added once tech stack is chosen*
+### Prerequisites
+- Node.js 20+
+
+### Backend
+```bash
+cd backend
+npm install
+cp .env.example .env  # If .env doesn't exist
+npm run dev           # Runs on http://localhost:3001
+```
+
+### Frontend (separate terminal)
+```bash
+cd frontend
+npm install
+npm run dev           # Runs on http://localhost:5173
+```
 
 ## Running Tests
 
-*To be added once testing framework is set up*
+Manual testing with multiple browser tabs:
+1. Open 3 tabs to http://localhost:5173
+2. Join same room with different nicknames
+3. Sync different game times (e.g., Q1 12:00, Q1 11:45, Q1 11:30)
+4. Send messages and verify delays match offsets

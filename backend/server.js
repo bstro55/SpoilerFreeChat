@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const helmet = require('helmet');
 const cors = require('cors');
 const roomManager = require('./services/roomManager');
+const messageQueue = require('./services/messageQueue');
 
 // Create Express app and HTTP server
 const app = express();
@@ -31,6 +32,9 @@ const io = new Server(server, {
     methods: ['GET', 'POST']
   }
 });
+
+// Initialize the message queue service with Socket.IO
+messageQueue.initialize(io);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -183,21 +187,50 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Create message object
+    // Create message object with server receive timestamp
+    const now = Date.now();
     const message = {
-      id: `${Date.now()}-${socket.id}`,
+      id: `${now}-${socket.id}`,
       senderId: socket.id,
       nickname,
       content,
-      timestamp: Date.now()
+      timestamp: now
     };
 
-    // Store message in room buffer
+    // Store message in room buffer (for users who join/refresh later)
     roomManager.addMessage(roomId, message);
 
-    // For Phase 1, broadcast immediately to everyone in the room
-    // (Phase 3 will add delay logic)
-    io.to(roomId).emit('new-message', message);
+    // Get all users in the room
+    const room = roomManager.getRoom(roomId);
+    const users = room.users;
+
+    // Deliver message to each user based on their offset
+    for (const [recipientSocketId, recipientUser] of users) {
+      const offset = recipientUser.offset;
+
+      // Sender always sees their own message immediately
+      if (recipientSocketId === socket.id) {
+        messageQueue.deliverImmediately(recipientSocketId, message);
+        continue;
+      }
+
+      // Users who haven't synced get messages immediately
+      // (we don't know their offset, so we can't delay)
+      if (!roomManager.hasUserSynced(roomId, recipientSocketId)) {
+        messageQueue.deliverImmediately(recipientSocketId, message);
+        continue;
+      }
+
+      // offset = 0 means user is "live" - deliver immediately
+      if (offset === 0) {
+        messageQueue.deliverImmediately(recipientSocketId, message);
+        continue;
+      }
+
+      // Queue the message for delayed delivery
+      const deliverAt = now + offset;
+      messageQueue.queueMessage(recipientSocketId, message, deliverAt);
+    }
 
     console.log(`Message in ${roomId} from ${nickname}: ${content.substring(0, 50)}...`);
   });
@@ -206,6 +239,12 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     const roomId = socket.roomId;
     const nickname = socket.nickname;
+
+    // Clear any queued messages for this user (they won't receive them)
+    const clearedCount = messageQueue.clearUserQueue(socket.id);
+    if (clearedCount > 0) {
+      console.log(`[MessageQueue] Cleared ${clearedCount} queued messages for ${nickname || socket.id}`);
+    }
 
     if (roomId) {
       // Remove user from room manager
