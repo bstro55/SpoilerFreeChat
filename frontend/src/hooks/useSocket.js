@@ -23,6 +23,8 @@ export function useSocket() {
   // Get store actions
   const {
     setConnected,
+    setReconnecting,
+    setConnectionError,
     setRoom,
     clearRoom,
     setUsers,
@@ -42,8 +44,9 @@ export function useSocket() {
     socketRef.current = io(SOCKET_URL, {
       // Reconnection settings
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000
     });
 
     const socket = socketRef.current;
@@ -52,16 +55,41 @@ export function useSocket() {
     socket.on('connect', () => {
       console.log('Connected to server');
       setConnected(true);
+      setConnectionError(null);
     });
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
+    socket.on('disconnect', (reason) => {
+      console.log('Disconnected from server:', reason);
       setConnected(false);
+      // Set a friendly message based on the disconnect reason
+      if (reason === 'io server disconnect') {
+        setConnectionError('Disconnected by server');
+      } else if (reason === 'transport close') {
+        setConnectionError('Connection lost');
+      }
     });
 
     socket.on('connect_error', (error) => {
       console.error('Connection error:', error);
-      setError('Unable to connect to server');
+      setConnectionError('Unable to connect to server');
+    });
+
+    // Reconnection events
+    socket.io.on('reconnect_attempt', (attempt) => {
+      console.log(`Reconnection attempt ${attempt}...`);
+      setReconnecting(true);
+    });
+
+    socket.io.on('reconnect', (attemptNumber) => {
+      console.log(`Reconnected after ${attemptNumber} attempts`);
+      setReconnecting(false);
+      setConnectionError(null);
+    });
+
+    socket.io.on('reconnect_failed', () => {
+      console.error('Failed to reconnect');
+      setReconnecting(false);
+      setConnectionError('Failed to reconnect. Please refresh the page.');
     });
 
     // Room events
@@ -128,7 +156,7 @@ export function useSocket() {
     return () => {
       socket.disconnect();
     };
-  }, [setConnected, setRoom, clearRoom, setUsers, addUser, removeUser, setMessages, addMessage, setError, setSyncState, updateUserSync]);
+  }, [setConnected, setReconnecting, setConnectionError, setRoom, clearRoom, setUsers, addUser, removeUser, setMessages, addMessage, setError, setSyncState, updateUserSync]);
 
   // Join a room
   const joinRoom = useCallback((roomId, nickname) => {

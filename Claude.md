@@ -63,10 +63,12 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## Current State
 
-- **Phase**: Phase 3 Complete (Message Queueing)
-- **Tech stack**: React + Vite (frontend), Node.js + Express + Socket.IO (backend)
+- **Phase**: Phase 4 Complete (Polish & Edge Cases)
+- **Tech stack**: React + Vite + Tailwind + Shadcn/UI (frontend), Node.js + Express + Socket.IO (backend)
 - **Core feature working**: Messages are delayed based on user offsets!
-- **Next**: Phase 4 (Polish & Edge Cases)
+- **UI**: Fully styled with Shadcn/UI components
+- **Security**: Rate limiting, input validation, XSS prevention
+- **Next**: Phase 5 (Deployment)
 
 ## Decisions Made
 
@@ -87,17 +89,32 @@ SpoilerFreeChat/
 ├── frontend/
 │   ├── package.json
 │   ├── vite.config.js
+│   ├── jsconfig.json      # Path aliases for @ imports
 │   ├── index.html
 │   └── src/
 │       ├── App.jsx
 │       ├── main.jsx
-│       ├── index.css
+│       ├── index.css         # Tailwind + Shadcn theme
 │       ├── components/
 │       │   ├── ChatRoom.jsx
 │       │   ├── TimeSync.jsx
-│       │   └── JoinRoom.jsx
+│       │   ├── JoinRoom.jsx
+│       │   ├── SyncModal.jsx
+│       │   └── ui/           # Shadcn/UI components
+│       │       ├── button.jsx
+│       │       ├── input.jsx
+│       │       ├── card.jsx
+│       │       ├── dialog.jsx
+│       │       ├── select.jsx
+│       │       ├── badge.jsx
+│       │       ├── alert.jsx
+│       │       ├── label.jsx
+│       │       ├── separator.jsx
+│       │       └── scroll-area.jsx
 │       ├── hooks/
 │       │   └── useSocket.js
+│       ├── lib/
+│       │   └── utils.js      # Shadcn utility functions
 │       └── store/
 │           └── chatStore.js
 └── backend/
@@ -106,8 +123,10 @@ SpoilerFreeChat/
     ├── .env
     └── services/
         ├── roomManager.js    # Room/user state management
-        ├── messageQueue.js   # Delay logic (Phase 3)
-        └── timeUtils.js      # Offset calculations
+        ├── messageQueue.js   # Delay logic
+        ├── timeUtils.js      # Offset calculations
+        ├── rateLimiter.js    # Message rate limiting
+        └── validation.js     # Input validation
 ```
 
 ## Setup Instructions

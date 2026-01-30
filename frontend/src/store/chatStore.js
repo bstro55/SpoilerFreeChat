@@ -25,7 +25,15 @@ import { create } from 'zustand';
 const useChatStore = create((set) => ({
   // Connection state
   isConnected: false,
-  setConnected: (connected) => set({ isConnected: connected }),
+  isReconnecting: false,
+  connectionError: null,
+  setConnected: (connected) => set({
+    isConnected: connected,
+    isReconnecting: false,
+    connectionError: connected ? null : undefined // Clear error on connect, keep on disconnect
+  }),
+  setReconnecting: (reconnecting) => set({ isReconnecting: reconnecting }),
+  setConnectionError: (error) => set({ connectionError: error }),
 
   // Room state
   roomId: null,

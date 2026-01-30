@@ -8,6 +8,8 @@ const helmet = require('helmet');
 const cors = require('cors');
 const roomManager = require('./services/roomManager');
 const messageQueue = require('./services/messageQueue');
+const rateLimiter = require('./services/rateLimiter');
+const validation = require('./services/validation');
 
 // Create Express app and HTTP server
 const app = express();
@@ -49,50 +51,55 @@ io.on('connection', (socket) => {
   socket.on('join-room', (data) => {
     const { roomId, nickname } = data;
 
-    // Basic validation
-    if (!roomId || !nickname) {
-      socket.emit('error', { message: 'Room ID and nickname are required' });
+    // Validate and sanitize room ID
+    const roomValidation = validation.validateRoomId(roomId);
+    if (!roomValidation.valid) {
+      socket.emit('error', { message: roomValidation.error });
       return;
     }
 
-    // Validate nickname (1-30 alphanumeric characters, spaces, underscores)
-    if (nickname.length < 1 || nickname.length > 30) {
-      socket.emit('error', { message: 'Nickname must be 1-30 characters' });
+    // Validate and sanitize nickname
+    const nicknameValidation = validation.validateNickname(nickname);
+    if (!nicknameValidation.valid) {
+      socket.emit('error', { message: nicknameValidation.error });
       return;
     }
+
+    const sanitizedRoomId = roomValidation.sanitized;
+    const sanitizedNickname = nicknameValidation.sanitized;
 
     // Join the Socket.IO room
-    socket.join(roomId);
+    socket.join(sanitizedRoomId);
 
     // Add user to room manager
-    roomManager.addUser(roomId, socket.id, nickname);
+    roomManager.addUser(sanitizedRoomId, socket.id, sanitizedNickname);
 
     // Store room info on socket for easy access
-    socket.roomId = roomId;
-    socket.nickname = nickname;
+    socket.roomId = sanitizedRoomId;
+    socket.nickname = sanitizedNickname;
 
     // Get current room state
-    const room = roomManager.getRoom(roomId);
-    const users = roomManager.getRoomUsers(roomId);
+    const room = roomManager.getRoom(sanitizedRoomId);
+    const users = roomManager.getRoomUsers(sanitizedRoomId);
 
     // Send confirmation to the joining user
     socket.emit('joined-room', {
-      roomId,
-      nickname,
+      roomId: sanitizedRoomId,
+      nickname: sanitizedNickname,
       users,
       messages: room.messages // Send recent message history
     });
 
     // Notify others in the room (include sync status)
-    socket.to(roomId).emit('user-joined', {
+    socket.to(sanitizedRoomId).emit('user-joined', {
       id: socket.id,
-      nickname,
+      nickname: sanitizedNickname,
       isSynced: false,
       offset: 0,
       offsetFormatted: 'Not synced'
     });
 
-    console.log(`${nickname} joined room: ${roomId}`);
+    console.log(`${sanitizedNickname} joined room: ${sanitizedRoomId}`);
   });
 
   // Handle game time synchronization
@@ -176,24 +183,36 @@ io.on('connection', (socket) => {
     const roomId = socket.roomId;
     const nickname = socket.nickname;
 
-    // Validate message
+    // Validate user is in a room
     if (!roomId || !nickname) {
       socket.emit('error', { message: 'You must join a room first' });
       return;
     }
 
-    if (!content || content.length === 0 || content.length > 500) {
-      socket.emit('error', { message: 'Message must be 1-500 characters' });
+    // Validate and sanitize message content
+    const messageValidation = validation.validateMessage(content);
+    if (!messageValidation.valid) {
+      socket.emit('error', { message: messageValidation.error });
+      return;
+    }
+
+    // Check rate limit (10 messages per minute)
+    const rateCheck = rateLimiter.checkRateLimit(socket.id);
+    if (!rateCheck.allowed) {
+      socket.emit('error', {
+        message: `Slow down! You can send again in ${rateCheck.retryAfter} seconds`
+      });
       return;
     }
 
     // Create message object with server receive timestamp
     const now = Date.now();
+    const sanitizedContent = messageValidation.sanitized;
     const message = {
       id: `${now}-${socket.id}`,
       senderId: socket.id,
       nickname,
-      content,
+      content: sanitizedContent,
       timestamp: now
     };
 
@@ -232,7 +251,7 @@ io.on('connection', (socket) => {
       messageQueue.queueMessage(recipientSocketId, message, deliverAt);
     }
 
-    console.log(`Message in ${roomId} from ${nickname}: ${content.substring(0, 50)}...`);
+    console.log(`Message in ${roomId} from ${nickname}: ${sanitizedContent.substring(0, 50)}...`);
   });
 
   // Handle disconnection
@@ -245,6 +264,9 @@ io.on('connection', (socket) => {
     if (clearedCount > 0) {
       console.log(`[MessageQueue] Cleared ${clearedCount} queued messages for ${nickname || socket.id}`);
     }
+
+    // Clear rate limiter data for this user
+    rateLimiter.clearUser(socket.id);
 
     if (roomId) {
       // Remove user from room manager

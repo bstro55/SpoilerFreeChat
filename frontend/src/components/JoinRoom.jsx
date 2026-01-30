@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import useChatStore from '../store/chatStore';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 
 /**
  * JoinRoom Component
  *
  * Displays a form for users to enter their nickname and join a chat room.
- * For Phase 1, we use a hardcoded room ID to keep things simple.
  */
 function JoinRoom({ onJoin }) {
   const [nickname, setNickname] = useState('');
@@ -16,9 +21,8 @@ function JoinRoom({ onJoin }) {
     e.preventDefault();
     clearError();
 
-    // Basic validation
     const trimmedNickname = nickname.trim();
-    const trimmedRoomCode = roomCode.trim() || 'demo-room'; // Default to demo room
+    const trimmedRoomCode = roomCode.trim() || 'demo-room';
 
     if (trimmedNickname.length < 1 || trimmedNickname.length > 30) {
       return;
@@ -28,49 +32,65 @@ function JoinRoom({ onJoin }) {
   };
 
   return (
-    <div className="join-room-container">
-      <div className="join-room-card">
-        <h1>SpoilerFreeChat</h1>
-        <p className="tagline">Watch together, chat without spoilers</p>
+    <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">SpoilerFreeChat</CardTitle>
+          <CardDescription>Watch together, chat without spoilers</CardDescription>
+        </CardHeader>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="nickname">Your Nickname</label>
-            <input
-              type="text"
-              id="nickname"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="Enter your nickname"
-              maxLength={30}
-              required
-            />
-          </div>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="nickname">Your Nickname</Label>
+              <Input
+                type="text"
+                id="nickname"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="Enter your nickname"
+                maxLength={30}
+                required
+              />
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="roomCode">Room Code (optional)</label>
-            <input
-              type="text"
-              id="roomCode"
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value)}
-              placeholder="Leave empty for demo room"
-              maxLength={50}
-            />
-            <small>Leave empty to join the demo room</small>
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="roomCode">Room Code (optional)</Label>
+              <Input
+                type="text"
+                id="roomCode"
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value)}
+                placeholder="Leave empty for demo room"
+                maxLength={50}
+              />
+              <p className="text-sm text-muted-foreground">
+                Leave empty to join the demo room
+              </p>
+            </div>
 
-          {error && <div className="error-message">{error}</div>}
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          <button type="submit" disabled={!isConnected || nickname.trim().length === 0}>
-            {isConnected ? 'Join Room' : 'Connecting...'}
-          </button>
-        </form>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={!isConnected || nickname.trim().length === 0}
+            >
+              {isConnected ? 'Join Room' : 'Connecting...'}
+            </Button>
+          </form>
+        </CardContent>
 
-        <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
-          {isConnected ? 'Connected to server' : 'Connecting to server...'}
-        </div>
-      </div>
+        <CardFooter className="justify-center">
+          <Badge variant={isConnected ? 'default' : 'secondary'}>
+            {isConnected ? 'Connected to server' : 'Connecting to server...'}
+          </Badge>
+        </CardFooter>
+      </Card>
     </div>
   );
 }

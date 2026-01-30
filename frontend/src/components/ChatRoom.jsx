@@ -2,21 +2,21 @@ import { useState, useRef, useEffect } from 'react';
 import useChatStore from '../store/chatStore';
 import TimeSync from './TimeSync';
 import SyncModal from './SyncModal';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 /**
  * ChatRoom Component
  *
  * The main chat interface showing messages, user list, and message input.
- * Phase 2 adds game time synchronization to calculate viewer offsets.
- *
- * Props:
- * - onSendMessage: Function to send a chat message
- * - onLeaveRoom: Function to leave the current room
- * - onSyncGameTime: Function to sync game time (quarter, minutes, seconds)
  */
-// Resync reminder timing constants
-const RESYNC_REMINDER_MS = 20 * 60 * 1000; // 20 minutes
-const RESYNC_CHECK_INTERVAL_MS = 60 * 1000; // Check every minute
+const RESYNC_REMINDER_MS = 20 * 60 * 1000;
+const RESYNC_CHECK_INTERVAL_MS = 60 * 1000;
 
 function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   const [inputValue, setInputValue] = useState('');
@@ -26,19 +26,29 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  const { roomId, nickname, users, messages, error, clearError, isSynced, offsetFormatted, lastSyncTime } = useChatStore();
+  const {
+    roomId,
+    nickname,
+    users,
+    messages,
+    error,
+    clearError,
+    isSynced,
+    offsetFormatted,
+    lastSyncTime,
+    isConnected,
+    isReconnecting,
+    connectionError
+  } = useChatStore();
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Check for resync reminder periodically
   useEffect(() => {
     if (!isSynced || !lastSyncTime) return;
 
@@ -49,15 +59,11 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
       }
     };
 
-    // Check immediately in case we already passed the threshold
     checkResyncNeeded();
-
-    // Then check periodically
     const interval = setInterval(checkResyncNeeded, RESYNC_CHECK_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [isSynced, lastSyncTime]);
 
-  // Reset reminder when user resyncs (lastSyncTime changes)
   useEffect(() => {
     setShowResyncReminder(false);
   }, [lastSyncTime]);
@@ -71,7 +77,6 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
       return;
     }
 
-    // Require sync before sending messages
     if (!isSynced) {
       setPendingMessage(content);
       setShowSyncModal(true);
@@ -82,10 +87,8 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
     setInputValue('');
   };
 
-  // Handle when user completes sync from modal
   const handleModalClose = () => {
     setShowSyncModal(false);
-    // If user synced and had a pending message, send it
     if (isSynced && pendingMessage) {
       onSendMessage(pendingMessage);
       setInputValue('');
@@ -93,7 +96,6 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
     setPendingMessage('');
   };
 
-  // Format timestamp for display
   const formatTime = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString([], {
       hour: '2-digit',
@@ -102,127 +104,191 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   };
 
   return (
-    <div className="chat-room-container">
-      {/* Header */}
-      <header className="chat-header">
-        <div className="room-info">
-          <h2>Room: {roomId}</h2>
-          <span className="user-count">{users.length} user{users.length !== 1 ? 's' : ''}</span>
+    <div className="h-screen flex flex-col bg-background">
+      {/* Connection Status Banner */}
+      {(!isConnected || isReconnecting || connectionError) && (
+        <div className={`px-4 py-2 text-center text-sm ${
+          isReconnecting
+            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200'
+            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200'
+        }`}>
+          {isReconnecting
+            ? 'Reconnecting to server...'
+            : connectionError || 'Connection lost'}
         </div>
-        <div className="header-right">
-          {/* Show offset status in header when synced */}
-          {isSynced && (
-            <span className="offset-badge">
-              {offsetFormatted}
+      )}
+
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold">Room: {roomId}</h2>
+            <Badge variant="secondary">
+              {users.length} user{users.length !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-3">
+            {isSynced && (
+              <Badge variant="outline">{offsetFormatted}</Badge>
+            )}
+            <span className="text-sm text-muted-foreground">
+              Chatting as: <strong className="text-foreground">{nickname}</strong>
             </span>
-          )}
-          <div className="user-info">
-            <span>Chatting as: <strong>{nickname}</strong></span>
-            <button onClick={onLeaveRoom} className="leave-button">
+            <Button variant="outline" size="sm" onClick={onLeaveRoom}>
               Leave Room
-            </button>
+            </Button>
           </div>
         </div>
       </header>
 
-      <div className="chat-main">
-        {/* Sidebar with Time Sync and User List */}
-        <aside className="sidebar">
-          {/* Time Sync Component */}
-          <TimeSync onSync={onSyncGameTime} />
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside className="w-72 border-r bg-muted/30 flex flex-col overflow-hidden">
+          <div className="p-4 flex-1 overflow-y-auto space-y-4">
+            <TimeSync onSync={onSyncGameTime} />
 
-          {/* User List */}
-          <div className="user-list">
-            <h3>In This Room</h3>
-            <ul>
-              {users.map((user) => (
-                <li key={user.id} className={user.nickname === nickname ? 'current-user' : ''}>
-                  <div className="user-name">
-                    {user.nickname}
-                    {user.nickname === nickname && ' (you)'}
-                  </div>
-                  <div className={`user-sync-status ${user.isSynced ? 'synced' : 'not-synced'}`}>
-                    {user.isSynced ? user.offsetFormatted : 'Not synced'}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <Card>
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm">In This Room</CardTitle>
+              </CardHeader>
+              <CardContent className="py-2 px-4">
+                <ul className="space-y-2">
+                  {users.map((user) => (
+                    <li
+                      key={user.id}
+                      className={`flex items-center justify-between text-sm ${
+                        user.nickname === nickname ? 'font-medium' : ''
+                      }`}
+                    >
+                      <span>
+                        {user.nickname}
+                        {user.nickname === nickname && (
+                          <span className="text-muted-foreground"> (you)</span>
+                        )}
+                      </span>
+                      <Badge
+                        variant={user.isSynced ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {user.isSynced ? user.offsetFormatted : 'Not synced'}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
           </div>
         </aside>
 
         {/* Messages Area */}
-        <main className="messages-area">
-          <div className="messages-list">
-            {messages.length === 0 ? (
-              <div className="no-messages">
-                <p>No messages yet. Say hello!</p>
-                {!isSynced && (
-                  <p className="sync-reminder">
-                    Remember to sync your game time in the sidebar!
-                  </p>
-                )}
-              </div>
-            ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`message ${message.nickname === nickname ? 'own-message' : ''}`}
-                >
-                  <div className="message-header">
-                    <span className="message-author">{message.nickname}</span>
-                    <span className="message-time">{formatTime(message.timestamp)}</span>
-                  </div>
-                  <div className="message-content">{message.content}</div>
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <ScrollArea className="flex-1 p-4">
+            <div className="space-y-3">
+              {messages.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No messages yet. Say hello!</p>
+                  {!isSynced && (
+                    <p className="mt-2 text-sm">
+                      Remember to sync your game time in the sidebar!
+                    </p>
+                  )}
                 </div>
-              ))
+              ) : (
+                messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`max-w-[80%] ${
+                      message.nickname === nickname ? 'ml-auto' : ''
+                    }`}
+                  >
+                    <div
+                      className={`rounded-lg px-3 py-2 ${
+                        message.nickname === nickname
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-4 mb-1">
+                        <span className="font-medium text-sm">{message.nickname}</span>
+                        <span className={`text-xs ${
+                          message.nickname === nickname
+                            ? 'text-primary-foreground/70'
+                            : 'text-muted-foreground'
+                        }`}>
+                          {formatTime(message.timestamp)}
+                        </span>
+                      </div>
+                      <p className="text-sm break-words">{message.content}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
+
+          {/* Banners */}
+          <div className="px-4 space-y-2">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription className="flex items-center justify-between">
+                  <span>{error}</span>
+                  <Button variant="ghost" size="sm" onClick={clearError}>
+                    Dismiss
+                  </Button>
+                </AlertDescription>
+              </Alert>
             )}
-            <div ref={messagesEndRef} />
+
+            {!isSynced && messages.length > 0 && (
+              <Alert>
+                <AlertDescription>
+                  Sync your game time in the sidebar to enable spoiler-free messaging
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {showResyncReminder && (
+              <Alert>
+                <AlertDescription className="flex items-center justify-between">
+                  <span>It's been a while since you synced. Is your game time still accurate?</span>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => setShowSyncModal(true)}>
+                      Resync Now
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setShowResyncReminder(false)}>
+                      Dismiss
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
-          {/* Error Display */}
-          {error && (
-            <div className="error-banner">
-              {error}
-              <button onClick={clearError}>Dismiss</button>
-            </div>
-          )}
-
-          {/* Sync Reminder Banner (for unsynced users) */}
-          {!isSynced && messages.length > 0 && (
-            <div className="sync-reminder-banner">
-              Sync your game time in the sidebar to enable spoiler-free messaging
-            </div>
-          )}
-
-          {/* Resync Reminder Banner (for users who synced a while ago) */}
-          {showResyncReminder && (
-            <div className="resync-reminder-banner">
-              <span>It's been a while since you synced. Is your game time still accurate?</span>
-              <div className="resync-actions">
-                <button onClick={() => setShowSyncModal(true)}>Resync Now</button>
-                <button onClick={() => setShowResyncReminder(false)}>Dismiss</button>
-              </div>
-            </div>
-          )}
+          <Separator />
 
           {/* Message Input */}
-          <form onSubmit={handleSubmit} className="message-form">
-            <input
+          <form onSubmit={handleSubmit} className="p-4 flex gap-2">
+            <Input
               ref={inputRef}
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Type a message..."
+              placeholder={isConnected ? "Type a message..." : "Reconnecting..."}
               maxLength={500}
+              className="flex-1"
+              disabled={!isConnected}
             />
-            <button type="submit" disabled={inputValue.trim().length === 0}>
+            <Button
+              type="submit"
+              disabled={inputValue.trim().length === 0 || !isConnected}
+            >
               Send
-            </button>
+            </Button>
           </form>
         </main>
       </div>
 
-      {/* Sync Required Modal */}
       <SyncModal
         isOpen={showSyncModal}
         onClose={handleModalClose}
