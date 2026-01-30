@@ -13,6 +13,13 @@ import { create } from 'zustand';
  * - users: Array of users in the current room
  * - messages: Array of messages in the current room
  * - error: Current error message (null if no error)
+ *
+ * Game Time Sync State (Phase 2):
+ * - gameTime: { quarter, minutes, seconds } - User's current game time
+ * - isSynced: Whether the user has synced their game time
+ * - offset: Delay in milliseconds relative to baseline
+ * - offsetFormatted: Human-readable offset (e.g., "23 seconds behind")
+ * - isBaseline: Whether this user set the room's baseline
  */
 const useChatStore = create((set) => ({
   // Connection state
@@ -23,7 +30,18 @@ const useChatStore = create((set) => ({
   roomId: null,
   nickname: null,
   setRoom: (roomId, nickname) => set({ roomId, nickname }),
-  clearRoom: () => set({ roomId: null, nickname: null, users: [], messages: [] }),
+  clearRoom: () => set({
+    roomId: null,
+    nickname: null,
+    users: [],
+    messages: [],
+    // Reset sync state when leaving room
+    gameTime: null,
+    isSynced: false,
+    offset: 0,
+    offsetFormatted: 'Not synced',
+    isBaseline: false
+  }),
 
   // Users in the room
   users: [],
@@ -33,6 +51,14 @@ const useChatStore = create((set) => ({
   })),
   removeUser: (userId) => set((state) => ({
     users: state.users.filter((u) => u.id !== userId)
+  })),
+  // Update a specific user's sync status (when they sync their game time)
+  updateUserSync: (userId, syncData) => set((state) => ({
+    users: state.users.map((u) =>
+      u.id === userId
+        ? { ...u, ...syncData }
+        : u
+    )
   })),
 
   // Messages
@@ -45,7 +71,23 @@ const useChatStore = create((set) => ({
   // Error handling
   error: null,
   setError: (error) => set({ error }),
-  clearError: () => set({ error: null })
+  clearError: () => set({ error: null }),
+
+  // Game Time Sync State (Phase 2)
+  gameTime: null, // { quarter, minutes, seconds }
+  isSynced: false,
+  offset: 0, // milliseconds
+  offsetFormatted: 'Not synced',
+  isBaseline: false,
+
+  // Set the user's synced game time and offset
+  setSyncState: ({ gameTime, offset, offsetFormatted, isBaseline }) => set({
+    gameTime,
+    isSynced: true,
+    offset,
+    offsetFormatted,
+    isBaseline
+  })
 }));
 
 export default useChatStore;

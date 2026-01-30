@@ -1,18 +1,24 @@
 import { useState, useRef, useEffect } from 'react';
 import useChatStore from '../store/chatStore';
+import TimeSync from './TimeSync';
 
 /**
  * ChatRoom Component
  *
  * The main chat interface showing messages, user list, and message input.
- * For Phase 1, this is a simple real-time chat without delay logic.
+ * Phase 2 adds game time synchronization to calculate viewer offsets.
+ *
+ * Props:
+ * - onSendMessage: Function to send a chat message
+ * - onLeaveRoom: Function to leave the current room
+ * - onSyncGameTime: Function to sync game time (quarter, minutes, seconds)
  */
-function ChatRoom({ onSendMessage, onLeaveRoom }) {
+function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  const { roomId, nickname, users, messages, error, clearError } = useChatStore();
+  const { roomId, nickname, users, messages, error, clearError, isSynced, offsetFormatted } = useChatStore();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -53,26 +59,45 @@ function ChatRoom({ onSendMessage, onLeaveRoom }) {
           <h2>Room: {roomId}</h2>
           <span className="user-count">{users.length} user{users.length !== 1 ? 's' : ''}</span>
         </div>
-        <div className="user-info">
-          <span>Chatting as: <strong>{nickname}</strong></span>
-          <button onClick={onLeaveRoom} className="leave-button">
-            Leave Room
-          </button>
+        <div className="header-right">
+          {/* Show offset status in header when synced */}
+          {isSynced && (
+            <span className="offset-badge">
+              {offsetFormatted}
+            </span>
+          )}
+          <div className="user-info">
+            <span>Chatting as: <strong>{nickname}</strong></span>
+            <button onClick={onLeaveRoom} className="leave-button">
+              Leave Room
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="chat-main">
-        {/* User List Sidebar */}
-        <aside className="user-list">
-          <h3>In This Room</h3>
-          <ul>
-            {users.map((user) => (
-              <li key={user.id} className={user.nickname === nickname ? 'current-user' : ''}>
-                {user.nickname}
-                {user.nickname === nickname && ' (you)'}
-              </li>
-            ))}
-          </ul>
+        {/* Sidebar with Time Sync and User List */}
+        <aside className="sidebar">
+          {/* Time Sync Component */}
+          <TimeSync onSync={onSyncGameTime} />
+
+          {/* User List */}
+          <div className="user-list">
+            <h3>In This Room</h3>
+            <ul>
+              {users.map((user) => (
+                <li key={user.id} className={user.nickname === nickname ? 'current-user' : ''}>
+                  <div className="user-name">
+                    {user.nickname}
+                    {user.nickname === nickname && ' (you)'}
+                  </div>
+                  <div className={`user-sync-status ${user.isSynced ? 'synced' : 'not-synced'}`}>
+                    {user.isSynced ? user.offsetFormatted : 'Not synced'}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         </aside>
 
         {/* Messages Area */}
@@ -81,6 +106,11 @@ function ChatRoom({ onSendMessage, onLeaveRoom }) {
             {messages.length === 0 ? (
               <div className="no-messages">
                 <p>No messages yet. Say hello!</p>
+                {!isSynced && (
+                  <p className="sync-reminder">
+                    Remember to sync your game time in the sidebar!
+                  </p>
+                )}
               </div>
             ) : (
               messages.map((message) => (
@@ -104,6 +134,13 @@ function ChatRoom({ onSendMessage, onLeaveRoom }) {
             <div className="error-banner">
               {error}
               <button onClick={clearError}>Dismiss</button>
+            </div>
+          )}
+
+          {/* Sync Reminder Banner */}
+          {!isSynced && messages.length > 0 && (
+            <div className="sync-reminder-banner">
+              Sync your game time in the sidebar to enable spoiler-free messaging
             </div>
           )}
 

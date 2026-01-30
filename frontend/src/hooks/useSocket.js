@@ -13,6 +13,7 @@ import useChatStore from '../store/chatStore';
  * - joinRoom: Function to join a room
  * - sendMessage: Function to send a message
  * - leaveRoom: Function to leave the current room
+ * - syncGameTime: Function to sync the user's game time (Phase 2)
  */
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
@@ -29,7 +30,10 @@ export function useSocket() {
     removeUser,
     setMessages,
     addMessage,
-    setError
+    setError,
+    // Phase 2: Game time sync actions
+    setSyncState,
+    updateUserSync
   } = useChatStore();
 
   // Initialize socket connection
@@ -83,6 +87,37 @@ export function useSocket() {
       addMessage(message);
     });
 
+    // Phase 2: Game time sync events
+    socket.on('sync-confirmed', (data) => {
+      console.log('Game time sync confirmed:', data);
+      setSyncState({
+        gameTime: { quarter: data.quarter, minutes: data.minutes, seconds: data.seconds },
+        offset: data.offset,
+        offsetFormatted: data.offsetFormatted,
+        isBaseline: data.isBaseline
+      });
+    });
+
+    socket.on('user-synced', (data) => {
+      console.log('User synced their game time:', data);
+      updateUserSync(data.id, {
+        isSynced: data.isSynced,
+        offset: data.offset,
+        offsetFormatted: data.offsetFormatted
+      });
+    });
+
+    // When our offset changes due to someone else syncing (baseline shift)
+    socket.on('offset-updated', (data) => {
+      console.log('Our offset was updated (baseline shift):', data);
+      setSyncState({
+        gameTime: useChatStore.getState().gameTime, // Keep existing game time
+        offset: data.offset,
+        offsetFormatted: data.offsetFormatted,
+        isBaseline: data.isBaseline
+      });
+    });
+
     // Error events
     socket.on('error', (data) => {
       console.error('Server error:', data);
@@ -93,7 +128,7 @@ export function useSocket() {
     return () => {
       socket.disconnect();
     };
-  }, [setConnected, setRoom, clearRoom, setUsers, addUser, removeUser, setMessages, addMessage, setError]);
+  }, [setConnected, setRoom, clearRoom, setUsers, addUser, removeUser, setMessages, addMessage, setError, setSyncState, updateUserSync]);
 
   // Join a room
   const joinRoom = useCallback((roomId, nickname) => {
@@ -118,11 +153,19 @@ export function useSocket() {
     }
   }, [clearRoom]);
 
+  // Phase 2: Sync game time
+  const syncGameTime = useCallback((quarter, minutes, seconds) => {
+    if (socketRef.current) {
+      socketRef.current.emit('sync-game-time', { quarter, minutes, seconds });
+    }
+  }, []);
+
   return {
     socket: socketRef.current,
     joinRoom,
     sendMessage,
-    leaveRoom
+    leaveRoom,
+    syncGameTime // Phase 2
   };
 }
 

@@ -12,7 +12,7 @@ import './App.css';
  */
 function App() {
   // Initialize socket connection and get helper functions
-  const { joinRoom, sendMessage, leaveRoom } = useSocket();
+  const { joinRoom, sendMessage, leaveRoom, syncGameTime } = useSocket();
 
   // Get room state to determine which view to show
   const { roomId } = useChatStore();
@@ -22,7 +22,11 @@ function App() {
   return (
     <div className="app">
       {roomId ? (
-        <ChatRoom onSendMessage={sendMessage} onLeaveRoom={leaveRoom} />
+        <ChatRoom
+          onSendMessage={sendMessage}
+          onLeaveRoom={leaveRoom}
+          onSyncGameTime={syncGameTime}
+        />
       ) : (
         <JoinRoom onJoin={joinRoom} />
       )}

@@ -79,13 +79,91 @@ io.on('connection', (socket) => {
       messages: room.messages // Send recent message history
     });
 
-    // Notify others in the room
+    // Notify others in the room (include sync status)
     socket.to(roomId).emit('user-joined', {
       id: socket.id,
-      nickname
+      nickname,
+      isSynced: false,
+      offset: 0,
+      offsetFormatted: 'Not synced'
     });
 
     console.log(`${nickname} joined room: ${roomId}`);
+  });
+
+  // Handle game time synchronization
+  socket.on('sync-game-time', (data) => {
+    const { quarter, minutes, seconds } = data;
+    const roomId = socket.roomId;
+    const nickname = socket.nickname;
+
+    // Validate user is in a room
+    if (!roomId || !nickname) {
+      socket.emit('error', { message: 'You must join a room first' });
+      return;
+    }
+
+    // Update user's game time and calculate offset
+    const result = roomManager.updateUserGameTime(
+      roomId,
+      socket.id,
+      quarter,
+      minutes,
+      seconds
+    );
+
+    if (!result.success) {
+      socket.emit('error', { message: result.error });
+      return;
+    }
+
+    // Send confirmation to the user with their offset
+    socket.emit('sync-confirmed', {
+      quarter,
+      minutes,
+      seconds,
+      offset: result.offset,
+      offsetFormatted: result.offsetFormatted,
+      isBaseline: result.isBaseline
+    });
+
+    // Notify others that this user has synced (update their user list)
+    socket.to(roomId).emit('user-synced', {
+      id: socket.id,
+      nickname,
+      isSynced: true,
+      offset: result.offset,
+      offsetFormatted: result.offsetFormatted
+    });
+
+    // If other users' offsets changed (due to baseline shift), notify them
+    if (result.updatedUsers && result.updatedUsers.size > 0) {
+      for (const [userId, updateData] of result.updatedUsers) {
+        // Don't re-notify the user who just synced (they already got sync-confirmed)
+        if (userId !== socket.id) {
+          // Send offset-updated to that specific user
+          io.to(userId).emit('offset-updated', {
+            offset: updateData.offset,
+            offsetFormatted: updateData.offsetFormatted,
+            isBaseline: updateData.offset === 0
+          });
+
+          // Also update everyone's view of that user
+          const user = roomManager.getUser(roomId, userId);
+          if (user) {
+            io.to(roomId).emit('user-synced', {
+              id: userId,
+              nickname: user.nickname,
+              isSynced: true,
+              offset: updateData.offset,
+              offsetFormatted: updateData.offsetFormatted
+            });
+          }
+        }
+      }
+    }
+
+    console.log(`${nickname} synced in ${roomId}: Q${quarter} ${minutes}:${seconds.toString().padStart(2, '0')} - ${result.offsetFormatted}`);
   });
 
   // Handle chat messages

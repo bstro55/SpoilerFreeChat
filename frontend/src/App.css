@@ -1,5 +1,5 @@
 /* ===========================================
-   SpoilerFreeChat - Phase 1 Styles
+   SpoilerFreeChat - Phase 2 Styles
    Basic styling to make the app functional and usable.
    Will be replaced/enhanced with Shadcn/UI in Phase 4.
    =========================================== */
@@ -15,6 +15,7 @@
   --border-color: #e5e7eb;
   --error-color: #ef4444;
   --success-color: #22c55e;
+  --warning-color: #d97706;
   --message-own: #e0e7ff;
   --message-other: #f3f4f6;
 }
@@ -173,6 +174,21 @@
   color: var(--text-secondary);
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.offset-badge {
+  padding: 0.375rem 0.75rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
 .user-info {
   display: flex;
   align-items: center;
@@ -205,22 +221,32 @@
   overflow: hidden;
 }
 
-/* User List Sidebar */
-.user-list {
-  width: 200px;
+/* Sidebar (TimeSync + User List) */
+.sidebar {
+  width: 280px;
   background: var(--surface);
   border-right: 1px solid var(--border-color);
   padding: 1rem;
   overflow-y: auto;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* User List within Sidebar */
+.user-list {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
 }
 
 .user-list h3 {
-  margin: 0 0 1rem 0;
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  letter-spacing: 0.05em;
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .user-list ul {
@@ -230,16 +256,36 @@
 }
 
 .user-list li {
-  padding: 0.5rem;
-  border-radius: 4px;
-  margin-bottom: 0.25rem;
-  font-size: 0.875rem;
-  color: var(--text-primary);
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  background: white;
+  border: 1px solid #e2e8f0;
 }
 
 .user-list li.current-user {
   background: var(--message-own);
+  border-color: #c7d2fe;
+}
+
+.user-name {
+  font-size: 14px;
   font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.user-sync-status {
+  font-size: 12px;
+}
+
+.user-sync-status.synced {
+  color: var(--warning-color);
+}
+
+.user-sync-status.not-synced {
+  color: var(--text-secondary);
+  font-style: italic;
 }
 
 /* Messages Area */
@@ -258,10 +304,31 @@
 
 .no-messages {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
   color: var(--text-secondary);
+  text-align: center;
+  gap: 0.5rem;
+}
+
+.no-messages p {
+  margin: 0;
+}
+
+.sync-reminder {
+  color: var(--warning-color);
+  font-size: 0.875rem;
+}
+
+/* Sync Reminder Banner */
+.sync-reminder-banner {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
 }
 
 .message {
@@ -372,7 +439,7 @@
    Responsive Design
    =========================================== */
 @media (max-width: 768px) {
-  .user-list {
+  .sidebar {
     display: none;
   }
 
@@ -380,6 +447,11 @@
     flex-direction: column;
     gap: 0.5rem;
     text-align: center;
+  }
+
+  .header-right {
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
   .user-info {

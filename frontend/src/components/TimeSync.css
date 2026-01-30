@@ -1,0 +1,181 @@
+/**
+ * TimeSync Component Styles
+ *
+ * Styles for the game time synchronization interface.
+ */
+
+.time-sync {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.time-sync-header h3 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.time-sync-description {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.time-sync-tip {
+  margin: 0 0 16px 0;
+  font-size: 11px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.time-sync-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.time-inputs {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.input-group label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.input-group select,
+.input-group input {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #1e293b;
+  background: white;
+}
+
+.input-group select {
+  min-width: 70px;
+}
+
+.input-group input[type="number"] {
+  width: 60px;
+  text-align: center;
+}
+
+/* Remove number input spinners for cleaner look */
+.input-group input[type="number"]::-webkit-outer-spin-button,
+.input-group input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input-group input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.input-group select:focus,
+.input-group input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.time-separator {
+  font-size: 20px;
+  font-weight: 600;
+  color: #64748b;
+  padding-bottom: 8px;
+}
+
+.sync-button {
+  padding: 10px 20px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.sync-button:hover {
+  background: #4338ca;
+}
+
+.sync-button:active {
+  background: #3730a3;
+}
+
+/* Sync Status Display */
+.sync-status {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.sync-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.sync-label {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.sync-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.sync-value.baseline {
+  color: #059669;
+}
+
+.sync-value.delayed {
+  color: #d97706;
+}
+
+/* Sync Prompt (before user syncs) */
+.sync-prompt {
+  margin-top: 12px;
+  padding: 12px;
+  background: #fef3c7;
+  border-radius: 6px;
+}
+
+.sync-prompt p {
+  margin: 0;
+  font-size: 13px;
+  color: #92400e;
+  text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .time-inputs {
+    flex-wrap: wrap;
+  }
+
+  .input-group select,
+  .input-group input {
+    padding: 10px;
+  }
+}
