@@ -20,6 +20,7 @@ import { create } from 'zustand';
  * - offset: Delay in milliseconds relative to baseline
  * - offsetFormatted: Human-readable offset (e.g., "23 seconds behind")
  * - isBaseline: Whether this user set the room's baseline
+ * - lastSyncTime: Timestamp of last sync (for resync reminder)
  */
 const useChatStore = create((set) => ({
   // Connection state
@@ -40,7 +41,8 @@ const useChatStore = create((set) => ({
     isSynced: false,
     offset: 0,
     offsetFormatted: 'Not synced',
-    isBaseline: false
+    isBaseline: false,
+    lastSyncTime: null
   }),
 
   // Users in the room
@@ -79,6 +81,7 @@ const useChatStore = create((set) => ({
   offset: 0, // milliseconds
   offsetFormatted: 'Not synced',
   isBaseline: false,
+  lastSyncTime: null, // Timestamp for resync reminder
 
   // Set the user's synced game time and offset
   setSyncState: ({ gameTime, offset, offsetFormatted, isBaseline }) => set({
@@ -86,7 +89,8 @@ const useChatStore = create((set) => ({
     isSynced: true,
     offset,
     offsetFormatted,
-    isBaseline
+    isBaseline,
+    lastSyncTime: Date.now()
   })
 }));
 

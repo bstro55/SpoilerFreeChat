@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import useChatStore from '../store/chatStore';
 import TimeSync from './TimeSync';
+import SyncModal from './SyncModal';
 
 /**
  * ChatRoom Component
@@ -13,12 +14,19 @@ import TimeSync from './TimeSync';
  * - onLeaveRoom: Function to leave the current room
  * - onSyncGameTime: Function to sync game time (quarter, minutes, seconds)
  */
+// Resync reminder timing constants
+const RESYNC_REMINDER_MS = 20 * 60 * 1000; // 20 minutes
+const RESYNC_CHECK_INTERVAL_MS = 60 * 1000; // Check every minute
+
 function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   const [inputValue, setInputValue] = useState('');
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState('');
+  const [showResyncReminder, setShowResyncReminder] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  const { roomId, nickname, users, messages, error, clearError, isSynced, offsetFormatted } = useChatStore();
+  const { roomId, nickname, users, messages, error, clearError, isSynced, offsetFormatted, lastSyncTime } = useChatStore();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -30,6 +38,30 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
     inputRef.current?.focus();
   }, []);
 
+  // Check for resync reminder periodically
+  useEffect(() => {
+    if (!isSynced || !lastSyncTime) return;
+
+    const checkResyncNeeded = () => {
+      const elapsed = Date.now() - lastSyncTime;
+      if (elapsed >= RESYNC_REMINDER_MS) {
+        setShowResyncReminder(true);
+      }
+    };
+
+    // Check immediately in case we already passed the threshold
+    checkResyncNeeded();
+
+    // Then check periodically
+    const interval = setInterval(checkResyncNeeded, RESYNC_CHECK_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [isSynced, lastSyncTime]);
+
+  // Reset reminder when user resyncs (lastSyncTime changes)
+  useEffect(() => {
+    setShowResyncReminder(false);
+  }, [lastSyncTime]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     clearError();
@@ -39,8 +71,26 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
       return;
     }
 
+    // Require sync before sending messages
+    if (!isSynced) {
+      setPendingMessage(content);
+      setShowSyncModal(true);
+      return;
+    }
+
     onSendMessage(content);
     setInputValue('');
+  };
+
+  // Handle when user completes sync from modal
+  const handleModalClose = () => {
+    setShowSyncModal(false);
+    // If user synced and had a pending message, send it
+    if (isSynced && pendingMessage) {
+      onSendMessage(pendingMessage);
+      setInputValue('');
+    }
+    setPendingMessage('');
   };
 
   // Format timestamp for display
@@ -137,10 +187,21 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
             </div>
           )}
 
-          {/* Sync Reminder Banner */}
+          {/* Sync Reminder Banner (for unsynced users) */}
           {!isSynced && messages.length > 0 && (
             <div className="sync-reminder-banner">
               Sync your game time in the sidebar to enable spoiler-free messaging
+            </div>
+          )}
+
+          {/* Resync Reminder Banner (for users who synced a while ago) */}
+          {showResyncReminder && (
+            <div className="resync-reminder-banner">
+              <span>It's been a while since you synced. Is your game time still accurate?</span>
+              <div className="resync-actions">
+                <button onClick={() => setShowSyncModal(true)}>Resync Now</button>
+                <button onClick={() => setShowResyncReminder(false)}>Dismiss</button>
+              </div>
             </div>
           )}
 
@@ -160,6 +221,15 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
           </form>
         </main>
       </div>
+
+      {/* Sync Required Modal */}
+      <SyncModal
+        isOpen={showSyncModal}
+        onClose={handleModalClose}
+        onSync={onSyncGameTime}
+        title="Sync Required"
+        subtitle="Please sync your game time before sending messages"
+      />
     </div>
   );
 }

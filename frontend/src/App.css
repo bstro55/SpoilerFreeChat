@@ -322,13 +322,63 @@
   font-size: 0.875rem;
 }
 
-/* Sync Reminder Banner */
+/* Sync Reminder Banner (for unsynced users) */
 .sync-reminder-banner {
   background: #fef3c7;
   color: #92400e;
   padding: 0.75rem 1rem;
   text-align: center;
   font-size: 0.875rem;
+}
+
+/* Resync Reminder Banner (for users who synced a while ago) */
+.resync-reminder-banner {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.875rem;
+}
+
+.resync-reminder-banner span {
+  flex: 1;
+}
+
+.resync-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.resync-actions button {
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.resync-actions button:first-child {
+  background: #1e40af;
+  color: white;
+  border: none;
+}
+
+.resync-actions button:first-child:hover {
+  background: #1e3a8a;
+}
+
+.resync-actions button:last-child {
+  background: transparent;
+  color: #1e40af;
+  border: 1px solid #1e40af;
+}
+
+.resync-actions button:last-child:hover {
+  background: rgba(30, 64, 175, 0.1);
 }
 
 .message {
