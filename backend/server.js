@@ -49,7 +49,19 @@ const connectionLimiter = rateLimit({
   standardHeaders: true,      // Return rate limit info in headers
   legacyHeaders: false,       // Disable X-RateLimit-* headers
   // Skip if this is an existing connection polling (has session ID)
-  skip: (req) => req.query.sid !== undefined,
+  // Note: io.engine.use() passes raw Node HTTP requests, not Express requests
+  // so we need to parse the URL manually instead of using req.query
+  skip: (req) => {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    return url.searchParams.has('sid');
+  },
+  // Custom key generator for raw Node HTTP requests (not Express requests)
+  // Extract IP from X-Forwarded-For (for proxies like Koyeb) or socket address
+  keyGenerator: (req) => {
+    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+           req.socket?.remoteAddress ||
+           'unknown';
+  },
   message: { message: 'Too many connections from this IP, please try again later' }
 });
 
