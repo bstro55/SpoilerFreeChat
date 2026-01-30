@@ -261,10 +261,10 @@ function calculateOffset(userId, gameTimeSeconds, roomId) {
 - [x] CORS whitelist (specific frontend domain only)
 
 ### Important (Add Soon)
-- [ ] Connection rate limiting per IP
-- [ ] Max queue size per user (100 messages)
-- [ ] Profanity filter for nicknames
-- [ ] Session expiration (4 hours)
+- [x] Connection rate limiting per IP ✅
+- [x] Max queue size per user (100 messages) ✅
+- [x] Profanity filter for nicknames ✅
+- [x] Session expiration (4 hours) ✅
 
 ---
 

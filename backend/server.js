@@ -6,6 +6,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const helmet = require('helmet');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const roomManager = require('./services/roomManager');
 const messageQueue = require('./services/messageQueue');
 const rateLimiter = require('./services/rateLimiter');
@@ -14,6 +15,10 @@ const validation = require('./services/validation');
 // Create Express app and HTTP server
 const app = express();
 const server = http.createServer(app);
+
+// Trust proxy (required for Koyeb/Vercel to get real client IP)
+// This enables express-rate-limit to see the actual IP from X-Forwarded-For
+app.set('trust proxy', 1);
 
 // Get configuration from environment variables
 const PORT = process.env.PORT || 3001;
@@ -34,6 +39,22 @@ const io = new Server(server, {
     methods: ['GET', 'POST']
   }
 });
+
+// Connection rate limiting per IP
+// Limits new Socket.IO connections to prevent connection spam/DoS
+// Only applies to handshake requests (new connections), not ongoing polls
+const connectionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15 minute window
+  limit: 10,                  // 10 new connections per window per IP
+  standardHeaders: true,      // Return rate limit info in headers
+  legacyHeaders: false,       // Disable X-RateLimit-* headers
+  // Skip if this is an existing connection polling (has session ID)
+  skip: (req) => req.query.sid !== undefined,
+  message: { message: 'Too many connections from this IP, please try again later' }
+});
+
+// Apply rate limiter to Socket.IO's underlying HTTP engine
+io.engine.use(connectionLimiter);
 
 // Initialize the message queue service with Socket.IO
 messageQueue.initialize(io);
@@ -284,6 +305,33 @@ io.on('connection', (socket) => {
     console.log(`User disconnected: ${socket.id}`);
   });
 });
+
+// Session expiration - disconnect users after 4 hours
+// This prevents stale connections from consuming server resources
+const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+// Check for expired sessions every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  const stats = roomManager.getStats();
+
+  for (const roomInfo of stats.rooms) {
+    const users = roomManager.getRoomUsers(roomInfo.id);
+
+    for (const user of users) {
+      if (now - user.joinedAt > SESSION_MAX_AGE_MS) {
+        const socket = io.sockets.sockets.get(user.id);
+        if (socket) {
+          console.log(`[Session] Expiring session for ${user.nickname} in room ${roomInfo.id}`);
+          socket.emit('session-expired', {
+            message: 'Your session has expired after 4 hours. Please rejoin the room.'
+          });
+          socket.disconnect(true);
+        }
+      }
+    }
+  }
+}, 5 * 60 * 1000); // Check every 5 minutes
 
 // Start the server
 server.listen(PORT, () => {

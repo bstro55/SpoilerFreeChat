@@ -11,6 +11,11 @@
  */
 
 const validator = require('validator');
+const Filter = require('bad-words');
+
+// Initialize profanity filter
+// This blocks offensive words in nicknames
+const profanityFilter = new Filter();
 
 /**
  * Validate and sanitize a nickname
@@ -46,6 +51,11 @@ function validateNickname(nickname) {
       valid: false,
       error: 'Nickname can only contain letters, numbers, spaces, underscores, and hyphens'
     };
+  }
+
+  // Check for profanity (generic error message to not reveal filter words)
+  if (profanityFilter.isProfane(trimmed)) {
+    return { valid: false, error: 'Please choose a different nickname' };
   }
 
   // Escape any HTML entities (defense in depth)
