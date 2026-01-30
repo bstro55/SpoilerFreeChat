@@ -181,17 +181,19 @@ SpoilerFreeChat/
 
 ---
 
-### Phase 5: Deployment (Week 5)
+### Phase 5: Deployment (Week 5) ✅ COMPLETE
 **Goal:** Live on the internet
 
-24. Configure environment variables
-25. Set up CORS for production domains
-26. Deploy backend to Koyeb
-27. Deploy frontend to Vercel
-28. Test WebSocket connection in production
-29. Set up basic monitoring (health endpoint)
+24. ✅ Configure environment variables
+25. ✅ Set up CORS for production domains
+26. ✅ Deploy backend to Koyeb
+27. ✅ Deploy frontend to Vercel
+28. ✅ Test WebSocket connection in production
+29. ✅ Health endpoint working (`/health`)
 
-**Deliverable:** Accessible public URL
+**Deliverable:** Accessible public URL ✅
+- Frontend: https://spoiler-free-chat.vercel.app
+- Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
 
 ---
 
@@ -250,7 +252,7 @@ function calculateOffset(userId, gameTimeSeconds, roomId) {
 ## Security Checklist
 
 ### Critical (Implement Immediately)
-- [ ] HTTPS in production (automatic on Koyeb/Vercel) - Phase 5
+- [x] HTTPS in production (automatic on Koyeb/Vercel) ✅
 - [x] Environment variables for secrets
 - [x] Input validation (nickname: 1-30 chars alphanumeric, message: 1-500 chars)
 - [x] XSS prevention (use React's default escaping, never dangerouslySetInnerHTML)

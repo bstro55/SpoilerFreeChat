@@ -63,12 +63,15 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## Current State
 
-- **Phase**: Phase 4 Complete (Polish & Edge Cases)
+- **Phase**: Phase 5 Complete (Deployment) 🚀
 - **Tech stack**: React + Vite + Tailwind + Shadcn/UI (frontend), Node.js + Express + Socket.IO (backend)
 - **Core feature working**: Messages are delayed based on user offsets!
 - **UI**: Fully styled with Shadcn/UI components
 - **Security**: Rate limiting, input validation, XSS prevention
-- **Next**: Phase 5 (Deployment)
+- **Live URLs**:
+  - Frontend: https://spoiler-free-chat.vercel.app
+  - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
+- **Next**: Future enhancements (Phase 6+)
 
 ## Decisions Made
 
