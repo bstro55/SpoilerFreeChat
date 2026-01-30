@@ -165,19 +165,19 @@ SpoilerFreeChat/
 
 ---
 
-### Phase 4: Polish & Edge Cases (Week 4)
+### Phase 4: Polish & Edge Cases (Week 4) ✅ COMPLETE
 **Goal:** Handle real-world scenarios
 
-17. Dynamic room creation via room codes
-18. "Resync" button for users to update their time
-19. Handle user disconnect (cleanup state)
-20. Add rate limiting (10 messages/minute)
-21. Input validation and XSS prevention
-22. Basic styling with Shadcn/UI
-23. Error handling and user feedback
-24. Consider: Require sync before messaging (popup/modal to sync when joining)
+17. ✅ Dynamic room creation via room codes
+18. ✅ "Resync" button for users to update their time
+19. ✅ Handle user disconnect (cleanup state)
+20. ✅ Add rate limiting (10 messages/minute)
+21. ✅ Input validation and XSS prevention
+22. ✅ Basic styling with Shadcn/UI
+23. ✅ Error handling and user feedback
+24. ✅ Require sync before messaging (SyncModal on join)
 
-**Deliverable:** Production-ready MVP
+**Deliverable:** Production-ready MVP ✅
 
 ---
 
@@ -250,13 +250,13 @@ function calculateOffset(userId, gameTimeSeconds, roomId) {
 ## Security Checklist
 
 ### Critical (Implement Immediately)
-- [ ] HTTPS in production (automatic on Koyeb/Vercel)
-- [ ] Environment variables for secrets
-- [ ] Input validation (nickname: 1-30 chars alphanumeric, message: 1-500 chars)
-- [ ] XSS prevention (use React's default escaping, never dangerouslySetInnerHTML)
-- [ ] Rate limiting (10 messages/minute/user)
-- [ ] `helmet` middleware for security headers
-- [ ] CORS whitelist (specific frontend domain only)
+- [ ] HTTPS in production (automatic on Koyeb/Vercel) - Phase 5
+- [x] Environment variables for secrets
+- [x] Input validation (nickname: 1-30 chars alphanumeric, message: 1-500 chars)
+- [x] XSS prevention (use React's default escaping, never dangerouslySetInnerHTML)
+- [x] Rate limiting (10 messages/minute/user)
+- [x] `helmet` middleware for security headers
+- [x] CORS whitelist (specific frontend domain only)
 
 ### Important (Add Soon)
 - [ ] Connection rate limiting per IP
