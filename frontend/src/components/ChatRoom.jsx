@@ -104,7 +104,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-zinc-50">
       {/* Connection Status Banner */}
       {(!isConnected || isReconnecting || connectionError) && (
         <div className={`px-4 py-2 text-center text-sm ${
@@ -119,7 +119,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
       )}
 
       {/* Header */}
-      <header className="border-b bg-card px-4 py-3">
+      <header className="border-b border-zinc-200 bg-white px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold">Room: {roomId}</h2>
@@ -131,8 +131,8 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
             {isSynced && (
               <Badge variant="outline">{offsetFormatted}</Badge>
             )}
-            <span className="text-sm text-muted-foreground">
-              Chatting as: <strong className="text-foreground">{nickname}</strong>
+            <span className="text-sm text-zinc-500">
+              Chatting as: <strong className="text-zinc-950">{nickname}</strong>
             </span>
             <Button variant="outline" size="sm" onClick={onLeaveRoom}>
               Leave Room
@@ -143,7 +143,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-72 border-r bg-muted/30 flex flex-col overflow-hidden">
+        <aside className="w-72 border-r border-zinc-200 bg-zinc-100 flex flex-col overflow-hidden">
           <div className="p-4 flex-1 overflow-y-auto space-y-4">
             <TimeSync onSync={onSyncGameTime} />
 
@@ -163,7 +163,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
                       <span>
                         {user.nickname}
                         {user.nickname === nickname && (
-                          <span className="text-muted-foreground"> (you)</span>
+                          <span className="text-zinc-500"> (you)</span>
                         )}
                       </span>
                       <Badge
@@ -185,7 +185,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-3">
               {messages.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
+                <div className="text-center py-12 text-zinc-500">
                   <p>No messages yet. Say hello!</p>
                   {!isSynced && (
                     <p className="mt-2 text-sm">
@@ -204,16 +204,16 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
                     <div
                       className={`rounded-lg px-3 py-2 ${
                         message.nickname === nickname
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted'
+                          ? 'bg-zinc-900 text-white'
+                          : 'bg-zinc-200 text-zinc-950'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-4 mb-1">
                         <span className="font-medium text-sm">{message.nickname}</span>
                         <span className={`text-xs ${
                           message.nickname === nickname
-                            ? 'text-primary-foreground/70'
-                            : 'text-muted-foreground'
+                            ? 'text-white/70'
+                            : 'text-zinc-500'
                         }`}>
                           {formatTime(message.timestamp)}
                         </span>
@@ -268,23 +268,34 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
           <Separator />
 
           {/* Message Input */}
-          <form onSubmit={handleSubmit} className="p-4 flex gap-2">
-            <Input
-              ref={inputRef}
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={isConnected ? "Type a message..." : "Reconnecting..."}
-              maxLength={500}
-              className="flex-1"
-              disabled={!isConnected}
-            />
-            <Button
-              type="submit"
-              disabled={inputValue.trim().length === 0 || !isConnected}
-            >
-              Send
-            </Button>
+          <form onSubmit={handleSubmit} className="p-4">
+            <div className="flex gap-2">
+              <Input
+                ref={inputRef}
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={isConnected ? "Type a message..." : "Reconnecting..."}
+                maxLength={500}
+                className="flex-1"
+                disabled={!isConnected}
+              />
+              <Button
+                type="submit"
+                disabled={inputValue.trim().length === 0 || !isConnected}
+              >
+                Send
+              </Button>
+            </div>
+            <div className={`text-xs mt-1 text-right ${
+              inputValue.length > 450
+                ? inputValue.length >= 500
+                  ? 'text-red-500'
+                  : 'text-yellow-600'
+                : 'text-zinc-500'
+            }`}>
+              {inputValue.length}/500
+            </div>
           </form>
         </main>
       </div>

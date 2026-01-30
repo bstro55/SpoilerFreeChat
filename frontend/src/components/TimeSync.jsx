@@ -124,11 +124,11 @@ function TimeSync({ onSync }) {
         {isSynced && (
           <div className="space-y-1 pt-2 border-t text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Game time:</span>
+              <span className="text-zinc-500">Game time:</span>
               <span className="font-medium">{formatGameTime(gameTime)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Your delay:</span>
+              <span className="text-zinc-500">Your delay:</span>
               <Badge variant={isBaseline ? 'default' : 'secondary'}>
                 {offsetFormatted}
                 {isBaseline && ' (Baseline)'}
@@ -138,7 +138,7 @@ function TimeSync({ onSync }) {
         )}
 
         {!isSynced && (
-          <p className="text-xs text-muted-foreground text-center pt-2">
+          <p className="text-xs text-zinc-500 text-center pt-2">
             Sync to enable spoiler-free chat
           </p>
         )}

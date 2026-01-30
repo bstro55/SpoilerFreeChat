@@ -32,7 +32,7 @@ function JoinRoom({ onJoin }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">SpoilerFreeChat</CardTitle>
@@ -64,7 +64,7 @@ function JoinRoom({ onJoin }) {
                 placeholder="Leave empty for demo room"
                 maxLength={50}
               />
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-zinc-500">
                 Leave empty to join the demo room
               </p>
             </div>
