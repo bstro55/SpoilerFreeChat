@@ -63,24 +63,27 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## Current State
 
-- **Phase**: Phase 5 Complete (Deployment) 🚀
-- **Tech stack**: React + Vite + Tailwind + Shadcn/UI (frontend), Node.js + Express + Socket.IO (backend)
+- **Phase**: Phase 6 Complete (Database Persistence) 🚀
+- **Tech stack**: React + Vite + Tailwind + Shadcn/UI (frontend), Node.js + Express + Socket.IO + Prisma (backend)
+- **Database**: Supabase PostgreSQL for persistence
 - **Core feature working**: Messages are delayed based on user offsets!
+- **Persistence**: Messages and sessions survive server restarts
+- **Reconnection**: Users can refresh the page and resume their session with game time restored
 - **UI**: Fully styled with Shadcn/UI components
 - **Security**: Rate limiting, input validation, XSS prevention
 - **Live URLs**:
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
-- **Next**: Future enhancements (Phase 6+)
+- **Next**: Future enhancements (Phase 7+)
 
 ## Decisions Made
 
 | Question | Decision |
 |----------|----------|
-| Tech stack | React + Vite + Node.js + Express + Socket.IO |
-| Database | Skip for MVP, in-memory storage |
+| Tech stack | React + Vite + Node.js + Express + Socket.IO + Prisma |
+| Database | Supabase PostgreSQL (added in Phase 6) |
 | Authentication | Anonymous + nicknames for MVP |
-| Deployment | Koyeb (backend) + Vercel (frontend) - planned |
+| Deployment | Koyeb (backend) + Vercel (frontend) |
 | Sports support | Basketball only for MVP |
 
 ## Project Structure
@@ -124,12 +127,17 @@ SpoilerFreeChat/
     ├── package.json
     ├── server.js
     ├── .env
+    ├── prisma/
+    │   ├── schema.prisma     # Database schema
+    │   └── migrations/       # Database migrations
     └── services/
-        ├── roomManager.js    # Room/user state management
+        ├── roomManager.js    # Room/user state management (hybrid in-memory + DB)
         ├── messageQueue.js   # Delay logic
         ├── timeUtils.js      # Offset calculations
         ├── rateLimiter.js    # Message rate limiting
-        └── validation.js     # Input validation
+        ├── validation.js     # Input validation
+        ├── database.js       # Prisma client singleton
+        └── sessionManager.js # Session persistence for reconnection
 ```
 
 ## Setup Instructions
