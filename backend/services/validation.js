@@ -17,6 +17,30 @@ const Filter = require('bad-words');
 // This blocks offensive words in nicknames
 const profanityFilter = new Filter();
 
+// Helper function to check for profanity as substrings (catches "asshat", "dumbass", etc.)
+// Only checks compound words where bad word is at very START or END of nickname
+// This avoids false positives like "Bassist" or "Classic"
+function containsProfanity(text) {
+  const lowerText = text.toLowerCase();
+
+  return profanityFilter.list.some(badWord => {
+    if (badWord.length >= 4) {
+      // Longer words: match anywhere
+      return lowerText.includes(badWord);
+    }
+
+    // Short words: only at very start or very end, with something attached
+    // "asshat" → starts with "ass" + more ✓
+    // "dumbass" → ends with "ass" after more ✓
+    // "Bassist" → "ass" in middle ✗
+    // "Bass" → just "ass" at end, nothing before ✗
+    const startsWithBadWord = lowerText.startsWith(badWord) && lowerText.length > badWord.length;
+    const endsWithBadWord = lowerText.endsWith(badWord) && lowerText.length > badWord.length + 2;
+
+    return startsWithBadWord || endsWithBadWord;
+  });
+}
+
 /**
  * Validate and sanitize a nickname
  * - Must be 1-30 characters
@@ -54,7 +78,9 @@ function validateNickname(nickname) {
   }
 
   // Check for profanity (generic error message to not reveal filter words)
-  if (profanityFilter.isProfane(trimmed)) {
+  // Uses both exact match (isProfane) and substring match (containsProfanity)
+  // to catch compound words like "asshat" or "dumbass"
+  if (profanityFilter.isProfane(trimmed) || containsProfanity(trimmed)) {
     return { valid: false, error: 'Please choose a different nickname' };
   }
 
