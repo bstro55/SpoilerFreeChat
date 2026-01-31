@@ -1,0 +1,276 @@
+/**
+ * Session Manager Service
+ *
+ * Handles user session persistence for reconnection support.
+ * When a user refreshes the page or briefly disconnects, they can
+ * resume their session (same nickname, same sync state) instead of
+ * appearing as a new user.
+ *
+ * Key concepts:
+ * - Session: A user's presence in a room (persisted to database)
+ * - Socket: The live WebSocket connection (in-memory only)
+ * - A session can exist without an active socket (disconnected but resumable)
+ *
+ * Reconnection window: 1 hour
+ * After that, the session is considered expired and user joins fresh.
+ */
+
+const prisma = require('./database');
+
+// How long a disconnected session remains valid for reconnection
+const RECONNECT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Get or create a session for a user joining a room.
+ *
+ * If the user has a recent active session with the same nickname in
+ * the same room, we reconnect them to it. Otherwise, we create a new session.
+ *
+ * @param {string} roomCode - The room identifier
+ * @param {string} nickname - The user's display name
+ * @param {string|null} existingSessionId - Session ID from client (if reconnecting)
+ * @returns {Promise<{session: Object, room: Object, isReconnect: boolean}>}
+ */
+async function getOrCreateSession(roomCode, nickname, existingSessionId = null) {
+  // First, ensure the room exists (create if it doesn't)
+  const room = await prisma.room.upsert({
+    where: { roomCode },
+    create: { roomCode },
+    update: { lastActivityAt: new Date() }
+  });
+
+  // If client provided a session ID, try to reconnect to it
+  if (existingSessionId) {
+    const existingSession = await prisma.session.findFirst({
+      where: {
+        id: existingSessionId,
+        roomId: room.id,
+        nickname: nickname,
+        isActive: true,
+        // Only reconnect if last seen within the reconnection window
+        lastSeenAt: { gt: new Date(Date.now() - RECONNECT_WINDOW_MS) }
+      }
+    });
+
+    if (existingSession) {
+      console.log(`[Session] Reconnecting ${nickname} to existing session in room ${roomCode}`);
+      return { session: existingSession, room, isReconnect: true };
+    }
+  }
+
+  // Check if there's already an active session with this nickname in this room
+  // (handles case where user refreshes without sending sessionId)
+  const existingByNickname = await prisma.session.findFirst({
+    where: {
+      roomId: room.id,
+      nickname: nickname,
+      isActive: true,
+      lastSeenAt: { gt: new Date(Date.now() - RECONNECT_WINDOW_MS) }
+    }
+  });
+
+  if (existingByNickname) {
+    console.log(`[Session] Found existing session for ${nickname} in room ${roomCode} by nickname`);
+    return { session: existingByNickname, room, isReconnect: true };
+  }
+
+  // No existing session found - create a new one
+  // First, mark any old sessions with this nickname as inactive
+  await prisma.session.updateMany({
+    where: {
+      roomId: room.id,
+      nickname: nickname
+    },
+    data: { isActive: false }
+  });
+
+  // Create the new session
+  const newSession = await prisma.session.create({
+    data: {
+      roomId: room.id,
+      nickname: nickname,
+      isActive: true
+    }
+  });
+
+  console.log(`[Session] Created new session for ${nickname} in room ${roomCode}`);
+  return { session: newSession, room, isReconnect: false };
+}
+
+/**
+ * Update session with current socket ID (marks user as connected)
+ *
+ * @param {string} sessionId - The session ID
+ * @param {string} socketId - The current socket ID
+ */
+async function connectSession(sessionId, socketId) {
+  await prisma.session.update({
+    where: { id: sessionId },
+    data: {
+      currentSocketId: socketId,
+      lastSeenAt: new Date(),
+      isActive: true
+    }
+  });
+}
+
+/**
+ * Mark session as disconnected (but still resumable)
+ * Called when socket disconnects - session remains active for reconnection window
+ *
+ * @param {string} sessionId - The session ID
+ */
+async function disconnectSession(sessionId) {
+  await prisma.session.update({
+    where: { id: sessionId },
+    data: {
+      currentSocketId: null,
+      lastSeenAt: new Date()
+      // Note: isActive stays true - session is still resumable
+    }
+  });
+}
+
+/**
+ * Update session's game time sync data
+ * Called when user syncs their game time
+ *
+ * @param {string} sessionId - The session ID
+ * @param {Object} gameTime - { quarter, minutes, seconds }
+ * @param {number} elapsedSeconds - Calculated elapsed seconds
+ */
+async function updateSessionGameTime(sessionId, gameTime, elapsedSeconds) {
+  await prisma.session.update({
+    where: { id: sessionId },
+    data: {
+      gameTimeQuarter: gameTime.quarter,
+      gameTimeMinutes: gameTime.minutes,
+      gameTimeSeconds: gameTime.seconds,
+      elapsedSeconds: elapsedSeconds,
+      lastSeenAt: new Date()
+    }
+  });
+}
+
+/**
+ * Get a session's stored game time (for reconnection)
+ *
+ * @param {string} sessionId - The session ID
+ * @returns {Promise<Object|null>} Game time data or null if not synced
+ */
+async function getSessionGameTime(sessionId) {
+  const session = await prisma.session.findUnique({
+    where: { id: sessionId },
+    select: {
+      gameTimeQuarter: true,
+      gameTimeMinutes: true,
+      gameTimeSeconds: true,
+      elapsedSeconds: true
+    }
+  });
+
+  if (!session || session.gameTimeQuarter === null) {
+    return null;
+  }
+
+  return {
+    quarter: session.gameTimeQuarter,
+    minutes: session.gameTimeMinutes,
+    seconds: session.gameTimeSeconds,
+    elapsedSeconds: session.elapsedSeconds
+  };
+}
+
+/**
+ * Find session by socket ID
+ *
+ * @param {string} socketId - The socket ID
+ * @returns {Promise<Object|null>} Session or null
+ */
+async function findSessionBySocketId(socketId) {
+  return prisma.session.findFirst({
+    where: { currentSocketId: socketId },
+    include: { room: true }
+  });
+}
+
+/**
+ * Mark session as fully inactive (no longer resumable)
+ * Called after reconnection window expires
+ *
+ * @param {string} sessionId - The session ID
+ */
+async function deactivateSession(sessionId) {
+  await prisma.session.update({
+    where: { id: sessionId },
+    data: { isActive: false }
+  });
+}
+
+/**
+ * Clean up old sessions and rooms
+ * Should be called periodically (e.g., daily)
+ *
+ * @param {number} maxAgeDays - Delete sessions older than this many days
+ */
+async function cleanupOldData(maxAgeDays = 7) {
+  const cutoffDate = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000);
+
+  // Delete inactive sessions older than cutoff
+  const deletedSessions = await prisma.session.deleteMany({
+    where: {
+      isActive: false,
+      lastSeenAt: { lt: cutoffDate }
+    }
+  });
+
+  // Delete rooms with no recent activity and no active sessions
+  const deletedRooms = await prisma.room.deleteMany({
+    where: {
+      lastActivityAt: { lt: cutoffDate },
+      sessions: { none: { isActive: true } }
+    }
+  });
+
+  if (deletedSessions.count > 0 || deletedRooms.count > 0) {
+    console.log(`[Cleanup] Deleted ${deletedSessions.count} old sessions and ${deletedRooms.count} inactive rooms`);
+  }
+
+  return { deletedSessions: deletedSessions.count, deletedRooms: deletedRooms.count };
+}
+
+/**
+ * Mark sessions as inactive if disconnected too long
+ * Should be called periodically (e.g., every 5 minutes)
+ */
+async function expireDisconnectedSessions() {
+  const expireBefore = new Date(Date.now() - RECONNECT_WINDOW_MS);
+
+  const expired = await prisma.session.updateMany({
+    where: {
+      currentSocketId: null,  // Not connected
+      isActive: true,
+      lastSeenAt: { lt: expireBefore }
+    },
+    data: { isActive: false }
+  });
+
+  if (expired.count > 0) {
+    console.log(`[Session] Expired ${expired.count} disconnected sessions`);
+  }
+
+  return expired.count;
+}
+
+module.exports = {
+  getOrCreateSession,
+  connectSession,
+  disconnectSession,
+  updateSessionGameTime,
+  getSessionGameTime,
+  findSessionBySocketId,
+  deactivateSession,
+  cleanupOldData,
+  expireDisconnectedSessions,
+  RECONNECT_WINDOW_MS
+};

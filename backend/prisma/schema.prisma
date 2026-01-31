@@ -1,0 +1,77 @@
+// Prisma Schema for SpoilerFreeChat
+// Database: Supabase PostgreSQL
+//
+// This schema defines three main models:
+// - Room: Chat rooms for specific games/events
+// - Message: Persisted chat messages
+// - Session: User sessions for reconnection support
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Represents a chat room for a specific game/event
+model Room {
+  id             String    @id @default(cuid())
+  roomCode       String    @unique  // User-friendly room ID like "lakers-vs-celtics"
+  createdAt      DateTime  @default(now())
+  lastActivityAt DateTime  @default(now()) @updatedAt
+
+  // Relations
+  messages       Message[]
+  sessions       Session[]
+
+  @@index([lastActivityAt])  // For cleanup queries
+}
+
+// Persisted chat messages - survives server restarts
+model Message {
+  id             String   @id @default(cuid())
+  roomId         String
+  senderNickname String   // Nickname at time of sending (denormalized for history)
+  sessionId      String?  // Optional reference to session (may be expired/deleted)
+  content        String   // Message content (pre-sanitized)
+  timestamp      DateTime @default(now())
+
+  // Relations
+  room           Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  session        Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, timestamp])  // For fetching room history
+}
+
+// User sessions for reconnection support
+// Allows users to refresh the page and resume their session
+model Session {
+  id               String    @id @default(cuid())
+  roomId           String
+  nickname         String
+
+  // Game time sync data (nullable until user syncs)
+  gameTimeQuarter  Int?
+  gameTimeMinutes  Int?
+  gameTimeSeconds  Int?
+  elapsedSeconds   Int?
+
+  // Session tracking
+  createdAt        DateTime  @default(now())
+  lastSeenAt       DateTime  @default(now())
+  isActive         Boolean   @default(true)
+
+  // Current socket connection (null when disconnected but session still valid)
+  currentSocketId  String?
+
+  // Relations
+  room             Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  messages         Message[]
+
+  @@unique([roomId, nickname])  // Prevent duplicate nicknames in same room
+  @@index([currentSocketId])     // For looking up session by socket
+  @@index([lastSeenAt])          // For session cleanup
+  @@index([roomId, isActive])    // For listing active users in room
+}

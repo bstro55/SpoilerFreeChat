@@ -11,6 +11,7 @@ const roomManager = require('./services/roomManager');
 const messageQueue = require('./services/messageQueue');
 const rateLimiter = require('./services/rateLimiter');
 const validation = require('./services/validation');
+const sessionManager = require('./services/sessionManager');
 
 // Create Express app and HTTP server
 const app = express();
@@ -80,134 +81,203 @@ app.get('/health', (req, res) => {
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  // Handle joining a room
-  socket.on('join-room', (data) => {
-    const { roomId, nickname } = data;
+  // Handle joining a room (now async for database operations)
+  socket.on('join-room', async (data) => {
+    try {
+      const { roomId, nickname, sessionId: clientSessionId } = data;
 
-    // Validate and sanitize room ID
-    const roomValidation = validation.validateRoomId(roomId);
-    if (!roomValidation.valid) {
-      socket.emit('error', { message: roomValidation.error });
-      return;
+      // Validate and sanitize room ID
+      const roomValidation = validation.validateRoomId(roomId);
+      if (!roomValidation.valid) {
+        socket.emit('error', { message: roomValidation.error });
+        return;
+      }
+
+      // Validate and sanitize nickname
+      const nicknameValidation = validation.validateNickname(nickname);
+      if (!nicknameValidation.valid) {
+        socket.emit('error', { message: nicknameValidation.error });
+        return;
+      }
+
+      const sanitizedRoomId = roomValidation.sanitized;
+      const sanitizedNickname = nicknameValidation.sanitized;
+
+      // Get or create session in database
+      const { session, room: dbRoom, isReconnect } = await sessionManager.getOrCreateSession(
+        sanitizedRoomId,
+        sanitizedNickname,
+        clientSessionId
+      );
+
+      // Connect session (update socket ID in database)
+      await sessionManager.connectSession(session.id, socket.id);
+
+      // Load message history from database and initialize room
+      const dbMessages = await roomManager.loadMessagesFromDb(dbRoom.id);
+      roomManager.initializeRoom(sanitizedRoomId, dbRoom.id, dbMessages);
+
+      // Get restored game time if reconnecting
+      let restoredGameTime = null;
+      if (isReconnect) {
+        restoredGameTime = await sessionManager.getSessionGameTime(session.id);
+        if (restoredGameTime) {
+          console.log(`[Session] Restoring game time for ${sanitizedNickname}: Q${restoredGameTime.quarter} ${restoredGameTime.minutes}:${restoredGameTime.seconds}`);
+        }
+      }
+
+      // Join the Socket.IO room
+      socket.join(sanitizedRoomId);
+
+      // Add user to room manager (with session ID and restored game time)
+      const user = roomManager.addUser(
+        sanitizedRoomId,
+        socket.id,
+        sanitizedNickname,
+        session.id,
+        restoredGameTime
+      );
+
+      // Store room info on socket for easy access
+      socket.roomId = sanitizedRoomId;
+      socket.nickname = sanitizedNickname;
+      socket.sessionId = session.id;
+
+      // Get current room state
+      const messages = roomManager.getRoomMessages(sanitizedRoomId);
+      const users = roomManager.getRoomUsers(sanitizedRoomId);
+
+      // Build sync state for reconnecting users
+      let syncState = null;
+      if (restoredGameTime) {
+        syncState = {
+          quarter: restoredGameTime.quarter,
+          minutes: restoredGameTime.minutes,
+          seconds: restoredGameTime.seconds,
+          offset: user.offset,
+          offsetFormatted: require('./services/timeUtils').formatOffset(user.offset),
+          isBaseline: user.offset === 0
+        };
+      }
+
+      // Send confirmation to the joining user
+      socket.emit('joined-room', {
+        roomId: sanitizedRoomId,
+        nickname: sanitizedNickname,
+        users,
+        messages,
+        sessionId: session.id,  // Send session ID for client storage
+        isReconnect,
+        syncState  // Restored sync state (null if new user)
+      });
+
+      // Notify others in the room (include sync status)
+      const isSynced = restoredGameTime !== null;
+      socket.to(sanitizedRoomId).emit('user-joined', {
+        id: socket.id,
+        nickname: sanitizedNickname,
+        isSynced,
+        offset: user.offset,
+        offsetFormatted: isSynced ? require('./services/timeUtils').formatOffset(user.offset) : 'Not synced'
+      });
+
+      console.log(`${sanitizedNickname} ${isReconnect ? 'reconnected to' : 'joined'} room: ${sanitizedRoomId}`);
+    } catch (error) {
+      console.error('Error in join-room:', error);
+      socket.emit('error', { message: 'Failed to join room. Please try again.' });
     }
-
-    // Validate and sanitize nickname
-    const nicknameValidation = validation.validateNickname(nickname);
-    if (!nicknameValidation.valid) {
-      socket.emit('error', { message: nicknameValidation.error });
-      return;
-    }
-
-    const sanitizedRoomId = roomValidation.sanitized;
-    const sanitizedNickname = nicknameValidation.sanitized;
-
-    // Join the Socket.IO room
-    socket.join(sanitizedRoomId);
-
-    // Add user to room manager
-    roomManager.addUser(sanitizedRoomId, socket.id, sanitizedNickname);
-
-    // Store room info on socket for easy access
-    socket.roomId = sanitizedRoomId;
-    socket.nickname = sanitizedNickname;
-
-    // Get current room state
-    const room = roomManager.getRoom(sanitizedRoomId);
-    const users = roomManager.getRoomUsers(sanitizedRoomId);
-
-    // Send confirmation to the joining user
-    socket.emit('joined-room', {
-      roomId: sanitizedRoomId,
-      nickname: sanitizedNickname,
-      users,
-      messages: room.messages // Send recent message history
-    });
-
-    // Notify others in the room (include sync status)
-    socket.to(sanitizedRoomId).emit('user-joined', {
-      id: socket.id,
-      nickname: sanitizedNickname,
-      isSynced: false,
-      offset: 0,
-      offsetFormatted: 'Not synced'
-    });
-
-    console.log(`${sanitizedNickname} joined room: ${sanitizedRoomId}`);
   });
 
   // Handle game time synchronization
-  socket.on('sync-game-time', (data) => {
-    const { quarter, minutes, seconds } = data;
-    const roomId = socket.roomId;
-    const nickname = socket.nickname;
+  socket.on('sync-game-time', async (data) => {
+    try {
+      const { quarter, minutes, seconds } = data;
+      const roomId = socket.roomId;
+      const nickname = socket.nickname;
+      const sessionId = socket.sessionId;
 
-    // Validate user is in a room
-    if (!roomId || !nickname) {
-      socket.emit('error', { message: 'You must join a room first' });
-      return;
-    }
+      // Validate user is in a room
+      if (!roomId || !nickname) {
+        socket.emit('error', { message: 'You must join a room first' });
+        return;
+      }
 
-    // Update user's game time and calculate offset
-    const result = roomManager.updateUserGameTime(
-      roomId,
-      socket.id,
-      quarter,
-      minutes,
-      seconds
-    );
+      // Update user's game time and calculate offset
+      const result = roomManager.updateUserGameTime(
+        roomId,
+        socket.id,
+        quarter,
+        minutes,
+        seconds
+      );
 
-    if (!result.success) {
-      socket.emit('error', { message: result.error });
-      return;
-    }
+      if (!result.success) {
+        socket.emit('error', { message: result.error });
+        return;
+      }
 
-    // Send confirmation to the user with their offset
-    socket.emit('sync-confirmed', {
-      quarter,
-      minutes,
-      seconds,
-      offset: result.offset,
-      offsetFormatted: result.offsetFormatted,
-      isBaseline: result.isBaseline
-    });
+      // Persist game time to database (async, non-blocking)
+      if (sessionId) {
+        sessionManager.updateSessionGameTime(
+          sessionId,
+          { quarter, minutes, seconds },
+          result.elapsedSeconds
+        ).catch(err => {
+          console.error(`Failed to persist game time for ${nickname}:`, err.message);
+        });
+      }
 
-    // Notify others that this user has synced (update their user list)
-    socket.to(roomId).emit('user-synced', {
-      id: socket.id,
-      nickname,
-      isSynced: true,
-      offset: result.offset,
-      offsetFormatted: result.offsetFormatted
-    });
+      // Send confirmation to the user with their offset
+      socket.emit('sync-confirmed', {
+        quarter,
+        minutes,
+        seconds,
+        offset: result.offset,
+        offsetFormatted: result.offsetFormatted,
+        isBaseline: result.isBaseline
+      });
 
-    // If other users' offsets changed (due to baseline shift), notify them
-    if (result.updatedUsers && result.updatedUsers.size > 0) {
-      for (const [userId, updateData] of result.updatedUsers) {
-        // Don't re-notify the user who just synced (they already got sync-confirmed)
-        if (userId !== socket.id) {
-          // Send offset-updated to that specific user
-          io.to(userId).emit('offset-updated', {
-            offset: updateData.offset,
-            offsetFormatted: updateData.offsetFormatted,
-            isBaseline: updateData.offset === 0
-          });
+      // Notify others that this user has synced (update their user list)
+      socket.to(roomId).emit('user-synced', {
+        id: socket.id,
+        nickname,
+        isSynced: true,
+        offset: result.offset,
+        offsetFormatted: result.offsetFormatted
+      });
 
-          // Also update everyone's view of that user
-          const user = roomManager.getUser(roomId, userId);
-          if (user) {
-            io.to(roomId).emit('user-synced', {
-              id: userId,
-              nickname: user.nickname,
-              isSynced: true,
+      // If other users' offsets changed (due to baseline shift), notify them
+      if (result.updatedUsers && result.updatedUsers.size > 0) {
+        for (const [userId, updateData] of result.updatedUsers) {
+          // Don't re-notify the user who just synced (they already got sync-confirmed)
+          if (userId !== socket.id) {
+            // Send offset-updated to that specific user
+            io.to(userId).emit('offset-updated', {
               offset: updateData.offset,
-              offsetFormatted: updateData.offsetFormatted
+              offsetFormatted: updateData.offsetFormatted,
+              isBaseline: updateData.offset === 0
             });
+
+            // Also update everyone's view of that user
+            const user = roomManager.getUser(roomId, userId);
+            if (user) {
+              io.to(roomId).emit('user-synced', {
+                id: userId,
+                nickname: user.nickname,
+                isSynced: true,
+                offset: updateData.offset,
+                offsetFormatted: updateData.offsetFormatted
+              });
+            }
           }
         }
       }
-    }
 
-    console.log(`${nickname} synced in ${roomId}: Q${quarter} ${minutes}:${seconds.toString().padStart(2, '0')} - ${result.offsetFormatted}`);
+      console.log(`${nickname} synced in ${roomId}: Q${quarter} ${minutes}:${seconds.toString().padStart(2, '0')} - ${result.offsetFormatted}`);
+    } catch (error) {
+      console.error('Error in sync-game-time:', error);
+      socket.emit('error', { message: 'Failed to sync game time. Please try again.' });
+    }
   });
 
   // Handle chat messages
@@ -215,6 +285,7 @@ io.on('connection', (socket) => {
     const { content } = data;
     const roomId = socket.roomId;
     const nickname = socket.nickname;
+    const sessionId = socket.sessionId;
 
     // Validate user is in a room
     if (!roomId || !nickname) {
@@ -250,7 +321,8 @@ io.on('connection', (socket) => {
     };
 
     // Store message in room buffer (for users who join/refresh later)
-    roomManager.addMessage(roomId, message);
+    // Now also persists to database asynchronously
+    roomManager.addMessage(roomId, message, sessionId);
 
     // Get all users in the room
     const room = roomManager.getRoom(roomId);
@@ -288,9 +360,10 @@ io.on('connection', (socket) => {
   });
 
   // Handle disconnection
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     const roomId = socket.roomId;
     const nickname = socket.nickname;
+    const sessionId = socket.sessionId;
 
     // Clear any queued messages for this user (they won't receive them)
     const clearedCount = messageQueue.clearUserQueue(socket.id);
@@ -300,6 +373,13 @@ io.on('connection', (socket) => {
 
     // Clear rate limiter data for this user
     rateLimiter.clearUser(socket.id);
+
+    // Mark session as disconnected in database (but keep it active for reconnection)
+    if (sessionId) {
+      sessionManager.disconnectSession(sessionId).catch(err => {
+        console.error(`Failed to disconnect session for ${nickname}:`, err.message);
+      });
+    }
 
     if (roomId) {
       // Remove user from room manager
@@ -344,6 +424,26 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000); // Check every 5 minutes
+
+// Database cleanup - expire disconnected sessions and clean old data
+// Run every 5 minutes
+setInterval(async () => {
+  try {
+    await sessionManager.expireDisconnectedSessions();
+  } catch (error) {
+    console.error('[Cleanup] Error expiring sessions:', error.message);
+  }
+}, 5 * 60 * 1000);
+
+// Deep cleanup - delete old sessions and inactive rooms
+// Run once per day
+setInterval(async () => {
+  try {
+    await sessionManager.cleanupOldData(7); // Delete data older than 7 days
+  } catch (error) {
+    console.error('[Cleanup] Error cleaning old data:', error.message);
+  }
+}, 24 * 60 * 60 * 1000);
 
 // Start the server
 server.listen(PORT, () => {

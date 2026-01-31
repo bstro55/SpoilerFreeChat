@@ -1,58 +1,49 @@
 /**
  * Room Manager Service
  *
- * Manages in-memory state for chat rooms, users, and messages.
- * This is ephemeral storage - data is lost on server restart.
+ * Manages HYBRID state for chat rooms, users, and messages.
+ * - In-memory: Active connections, offsets, message queues (real-time performance)
+ * - Database: Rooms, messages, sessions (persistence across restarts)
  *
- * Data Structures:
+ * Data Structures (In-Memory):
  * - rooms: Map<roomId, Room>
  * - Room: {
  *     users: Map<socketId, User>,
- *     messages: Array<Message>,
- *     createdAt: number
+ *     messages: Array<Message>,  // Recent messages cache
+ *     createdAt: number,
+ *     dbId: string | null        // Database ID for the room
  *   }
  * - User: {
- *     id: string,
+ *     id: string,                // Socket ID
+ *     sessionId: string,         // Database session ID (for persistence)
  *     nickname: string,
  *     joinedAt: number,
  *     gameTime: { quarter, minutes, seconds } | null,
- *     elapsedSeconds: number | null,  // How many seconds of game have elapsed
- *     offset: number  // Delay in ms relative to most advanced user (0 = live)
+ *     elapsedSeconds: number | null,
+ *     offset: number
  *   }
  * - Message: { id, senderId, nickname, content, timestamp }
  *
- * OFFSET CALCULATION (SIMPLIFIED):
- *
- * The offset is based purely on GAME TIME, not real-world time.
- * This is correct because game clocks don't run 1:1 with real time
- * (timeouts, halftime, commercials, etc.).
- *
- * Algorithm:
+ * OFFSET CALCULATION (unchanged from before):
+ * Based purely on GAME TIME, not real-world time.
  * 1. Convert each user's game time to elapsed seconds
- *    - Q1 12:00 → 0 elapsed (game just started)
- *    - Q1 11:30 → 30 elapsed (30 seconds into Q1)
  * 2. Find the MAX elapsed time (most advanced user = "live")
  * 3. Each user's offset = (max elapsed - their elapsed) * 1000ms
- *
- * Example:
- *   User A at Q1 12:00 → elapsed = 0
- *   User B at Q1 11:30 → elapsed = 30
- *
- *   Max elapsed = 30 (User B is most advanced)
- *   User A offset = (30 - 0) * 1000 = 30,000ms = 30 seconds behind
- *   User B offset = (30 - 30) * 1000 = 0ms = live
  */
 
 const timeUtils = require('./timeUtils');
+const prisma = require('./database');
 
-// Maximum number of messages to keep in room history
+// Maximum number of messages to keep in room history (in-memory cache)
 const MAX_MESSAGES_PER_ROOM = 50;
 
 // In-memory storage for all rooms
 const rooms = new Map();
 
 /**
- * Get or create a room by ID
+ * Get or create a room by ID (in-memory only)
+ * For database persistence, use initializeRoom() instead
+ *
  * @param {string} roomId - The room identifier
  * @returns {Object} The room object
  */
@@ -61,29 +52,93 @@ function getRoom(roomId) {
     rooms.set(roomId, {
       users: new Map(),
       messages: [],
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      dbId: null  // Will be set when synced with database
     });
   }
   return rooms.get(roomId);
 }
 
 /**
+ * Initialize a room with database state
+ * Called when first user joins a room to load persisted data
+ *
+ * @param {string} roomId - The room identifier (roomCode)
+ * @param {string} dbRoomId - The database ID for the room
+ * @param {Array} messages - Recent messages from database
+ */
+function initializeRoom(roomId, dbRoomId, messages = []) {
+  const room = getRoom(roomId);
+  room.dbId = dbRoomId;
+
+  // Load messages from database into memory (if not already loaded)
+  if (room.messages.length === 0 && messages.length > 0) {
+    room.messages = messages.map(m => ({
+      id: m.id,
+      senderId: m.sessionId || 'unknown',
+      nickname: m.senderNickname,
+      content: m.content,
+      timestamp: m.timestamp.getTime()
+    }));
+    console.log(`[Room ${roomId}] Loaded ${messages.length} messages from database`);
+  }
+
+  return room;
+}
+
+/**
+ * Load recent messages from database for a room
+ *
+ * @param {string} dbRoomId - The database room ID
+ * @param {number} limit - Max messages to load
+ * @returns {Promise<Array>} Array of message objects
+ */
+async function loadMessagesFromDb(dbRoomId, limit = MAX_MESSAGES_PER_ROOM) {
+  const messages = await prisma.message.findMany({
+    where: { roomId: dbRoomId },
+    orderBy: { timestamp: 'desc' },
+    take: limit
+  });
+
+  // Reverse to get oldest first (chronological order)
+  return messages.reverse();
+}
+
+/**
  * Add a user to a room
+ *
  * @param {string} roomId - The room identifier
  * @param {string} socketId - The user's socket ID
  * @param {string} nickname - The user's display name
+ * @param {string} sessionId - The database session ID
+ * @param {Object|null} restoredGameTime - Game time to restore (for reconnection)
  */
-function addUser(roomId, socketId, nickname) {
+function addUser(roomId, socketId, nickname, sessionId = null, restoredGameTime = null) {
   const room = getRoom(roomId);
-  room.users.set(socketId, {
+
+  const user = {
     id: socketId,
+    sessionId: sessionId,
     nickname,
     joinedAt: Date.now(),
-    // Game time sync fields - null until user syncs
-    gameTime: null,
-    elapsedSeconds: null,
-    offset: 0  // Default to 0 (no delay) until synced
-  });
+    // Game time sync fields - null until user syncs (or restored)
+    gameTime: restoredGameTime ? {
+      quarter: restoredGameTime.quarter,
+      minutes: restoredGameTime.minutes,
+      seconds: restoredGameTime.seconds
+    } : null,
+    elapsedSeconds: restoredGameTime ? restoredGameTime.elapsedSeconds : null,
+    offset: 0  // Will be recalculated if gameTime is restored
+  };
+
+  room.users.set(socketId, user);
+
+  // If restoring game time, recalculate offsets
+  if (restoredGameTime) {
+    recalculateOffsets(roomId);
+  }
+
+  return user;
 }
 
 /**
@@ -185,6 +240,7 @@ function updateUserGameTime(roomId, socketId, quarter, minutes, seconds) {
     offset: user.offset,
     offsetFormatted: timeUtils.formatOffset(user.offset),
     isBaseline,
+    elapsedSeconds,  // Include for database persistence
     // Include other users whose offsets changed (for broadcasting updates)
     updatedUsers
   };
@@ -245,7 +301,7 @@ function removeUser(roomId, socketId) {
 
     room.users.delete(socketId);
 
-    // Clean up empty rooms to prevent memory leaks
+    // Clean up empty rooms from memory (but keep in database)
     if (room.users.size === 0) {
       rooms.delete(roomId);
     } else if (wasMaxElapsed) {
@@ -281,18 +337,48 @@ function getRoomUsers(roomId) {
 }
 
 /**
- * Add a message to a room's history
+ * Add a message to a room's history (in-memory + database)
+ *
  * @param {string} roomId - The room identifier
  * @param {Object} message - The message object
+ * @param {string|null} sessionId - The sender's session ID (for database)
  */
-function addMessage(roomId, message) {
+function addMessage(roomId, message, sessionId = null) {
   const room = getRoom(roomId);
+
+  // Add to in-memory cache immediately (for real-time performance)
   room.messages.push(message);
 
-  // Keep only the last MAX_MESSAGES_PER_ROOM messages
+  // Keep only the last MAX_MESSAGES_PER_ROOM messages in memory
   if (room.messages.length > MAX_MESSAGES_PER_ROOM) {
     room.messages = room.messages.slice(-MAX_MESSAGES_PER_ROOM);
   }
+
+  // Persist to database asynchronously (don't block real-time delivery)
+  if (room.dbId) {
+    persistMessageToDb(room.dbId, message, sessionId).catch(err => {
+      console.error(`[Room ${roomId}] Failed to persist message:`, err.message);
+    });
+  }
+}
+
+/**
+ * Persist a message to the database (async, non-blocking)
+ *
+ * @param {string} dbRoomId - The database room ID
+ * @param {Object} message - The message object
+ * @param {string|null} sessionId - The sender's session ID
+ */
+async function persistMessageToDb(dbRoomId, message, sessionId) {
+  await prisma.message.create({
+    data: {
+      roomId: dbRoomId,
+      sessionId: sessionId,
+      senderNickname: message.nickname,
+      content: message.content,
+      timestamp: new Date(message.timestamp)
+    }
+  });
 }
 
 /**
@@ -305,6 +391,17 @@ function getUser(roomId, socketId) {
   const room = rooms.get(roomId);
   if (!room) return undefined;
   return room.users.get(socketId);
+}
+
+/**
+ * Get the room's in-memory messages
+ * @param {string} roomId - The room identifier
+ * @returns {Array} Array of messages
+ */
+function getRoomMessages(roomId) {
+  const room = rooms.get(roomId);
+  if (!room) return [];
+  return room.messages;
 }
 
 /**
@@ -325,15 +422,20 @@ function getStats() {
 
 module.exports = {
   getRoom,
+  initializeRoom,
+  loadMessagesFromDb,
   addUser,
   removeUser,
   getRoomUsers,
+  getRoomMessages,
   addMessage,
   getUser,
   getStats,
-  // Functions for Phase 2
+  // Functions for game time sync
   updateUserGameTime,
   getUserOffset,
   hasUserSynced,
-  recalculateOffsets
+  recalculateOffsets,
+  // Constants
+  MAX_MESSAGES_PER_ROOM
 };

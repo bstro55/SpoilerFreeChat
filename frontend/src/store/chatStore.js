@@ -10,6 +10,7 @@ import { create } from 'zustand';
  * - isConnected: Whether the socket is connected to the server
  * - roomId: Current room the user is in (null if not joined)
  * - nickname: User's display name (null if not joined)
+ * - sessionId: Database session ID for reconnection support
  * - users: Array of users in the current room
  * - messages: Array of messages in the current room
  * - error: Current error message (null if no error)
@@ -38,10 +39,12 @@ const useChatStore = create((set) => ({
   // Room state
   roomId: null,
   nickname: null,
-  setRoom: (roomId, nickname) => set({ roomId, nickname }),
+  sessionId: null,  // Database session ID for reconnection
+  setRoom: (roomId, nickname, sessionId = null) => set({ roomId, nickname, sessionId }),
   clearRoom: () => set({
     roomId: null,
     nickname: null,
+    sessionId: null,
     users: [],
     messages: [],
     // Reset sync state when leaving room
