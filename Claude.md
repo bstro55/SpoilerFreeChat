@@ -1,5 +1,14 @@
 # SpoilerFreeChat
 
+## ⚠️ SECURITY TODO (Next Session)
+1. **Change the Supabase database password** - The current password was exposed in chat logs and should be rotated
+2. **Discuss with Claude:** How to properly secure database credentials going forward, especially:
+   - Keeping secrets out of git history
+   - Environment variable best practices for production
+   - What users/attackers could do if they obtained the database URL
+
+---
+
 ## Project Overview
 
 **SpoilerFreeChat** is a web application that enables spoiler-free live sports conversations. When watching live sports via TV or streaming, broadcast delays vary between viewers. This app synchronizes chat messages based on each user's current game time, ensuring no one receives spoilers from viewers who are ahead in the broadcast.
