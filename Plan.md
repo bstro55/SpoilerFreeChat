@@ -29,9 +29,9 @@ A web application enabling spoiler-free live sports chat by synchronizing messag
 ### Data Storage
 | Technology | Purpose | Why |
 |------------|---------|-----|
-| **In-Memory Maps** | Ephemeral State | User offsets, message queues, active connections |
-| **PostgreSQL (Supabase)** | Persistent Data | Add later for accounts/history (skip for MVP) |
-| **Prisma** | ORM | Add with database when needed |
+| **In-Memory Maps** | Real-time State | User offsets, message queues, active connections |
+| **PostgreSQL (Supabase)** | Persistent Data | Rooms, messages, sessions (added Phase 6) |
+| **Prisma** | ORM | Type-safe database access |
 
 ### Deployment
 | Service | Purpose | Cost |
@@ -373,22 +373,25 @@ After each phase, verify:
 
 | Question | Decision |
 |----------|----------|
-| Tech stack | React + Vite + Node.js + Express + Socket.IO |
-| Database | Skip for MVP, add Supabase later |
+| Tech stack | React + Vite + Node.js + Express + Socket.IO + Prisma |
+| Database | Supabase PostgreSQL (added Phase 6) |
 | TypeScript | Start with JavaScript, migrate later |
 | Authentication | Anonymous + nicknames for MVP |
 | Deployment | Koyeb (backend) + Vercel (frontend) |
-| Reconnection | In-memory buffer (~50 msgs) for refresh/rejoin |
+| Reconnection | Database-backed sessions + localStorage for game time restoration |
 | Sports support | Basketball only for MVP |
 
 ---
 
 ## Future Enhancements (Post-MVP)
 
-### Phase 6: Persistence
-- Add Supabase PostgreSQL + Prisma
-- Persist chat history per room
-- Session-based reconnection (preserve queued messages)
+### Phase 6: Persistence ✅ COMPLETE
+- ✅ Add Supabase PostgreSQL + Prisma
+- ✅ Persist chat history per room
+- ✅ Session-based reconnection (game time restored on refresh)
+- ✅ Messages survive server restarts
+
+**Deliverable:** Data persists across refreshes and server restarts ✅
 
 ### Phase 7: Authentication
 - Add Supabase Auth
