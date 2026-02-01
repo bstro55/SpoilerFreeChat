@@ -63,18 +63,21 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## Current State
 
-- **Phase**: Phase 6 Complete (Database Persistence) 🚀
+- **Phase**: Phase 7 Complete (Authentication) 🚀
 - **Tech stack**: React + Vite + Tailwind + Shadcn/UI (frontend), Node.js + Express + Socket.IO + Prisma (backend)
 - **Database**: Supabase PostgreSQL for persistence
+- **Authentication**: Google OAuth via Supabase Auth (optional - guests still supported)
 - **Core feature working**: Messages are delayed based on user offsets!
 - **Persistence**: Messages and sessions survive server restarts
 - **Reconnection**: Users can refresh the page and resume their session with game time restored
+- **User preferences**: Authenticated users can save nickname, theme, notification settings
+- **Recent rooms**: Quick rejoin feature for authenticated users
 - **UI**: Fully styled with Shadcn/UI components
-- **Security**: Rate limiting, input validation, XSS prevention
+- **Security**: Rate limiting, input validation, XSS prevention, JWT verification
 - **Live URLs**:
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
-- **Next**: Future enhancements (Phase 7+)
+- **Next**: Phase 8 (Multi-Sport Support)
 
 ## Decisions Made
 
@@ -82,7 +85,7 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 |----------|----------|
 | Tech stack | React + Vite + Node.js + Express + Socket.IO + Prisma |
 | Database | Supabase PostgreSQL (added in Phase 6) |
-| Authentication | Anonymous + nicknames for MVP |
+| Authentication | Google OAuth via Supabase Auth (optional, guests supported) |
 | Deployment | Koyeb (backend) + Vercel (frontend) |
 | Sports support | Basketball only for MVP |
 
@@ -106,6 +109,9 @@ SpoilerFreeChat/
 │       │   ├── TimeSync.jsx
 │       │   ├── JoinRoom.jsx
 │       │   ├── SyncModal.jsx
+│       │   ├── AuthButton.jsx      # Sign in/out button
+│       │   ├── AuthModal.jsx       # OAuth sign-in modal
+│       │   ├── PreferencesModal.jsx # User preferences
 │       │   └── ui/           # Shadcn/UI components
 │       │       ├── button.jsx
 │       │       ├── input.jsx
@@ -116,13 +122,16 @@ SpoilerFreeChat/
 │       │       ├── alert.jsx
 │       │       ├── label.jsx
 │       │       ├── separator.jsx
-│       │       └── scroll-area.jsx
+│       │       ├── scroll-area.jsx
+│       │       └── switch.jsx
 │       ├── hooks/
 │       │   └── useSocket.js
 │       ├── lib/
-│       │   └── utils.js      # Shadcn utility functions
+│       │   ├── utils.js      # Shadcn utility functions
+│       │   └── supabase.js   # Supabase client
 │       └── store/
-│           └── chatStore.js
+│           ├── chatStore.js
+│           └── authStore.js  # Authentication state
 └── backend/
     ├── package.json
     ├── server.js
@@ -137,7 +146,9 @@ SpoilerFreeChat/
         ├── rateLimiter.js    # Message rate limiting
         ├── validation.js     # Input validation
         ├── database.js       # Prisma client singleton
-        └── sessionManager.js # Session persistence for reconnection
+        ├── sessionManager.js # Session persistence for reconnection
+        ├── authService.js    # JWT token verification
+        └── userService.js    # User preferences and recent rooms
 ```
 
 ## Setup Instructions
