@@ -32,7 +32,7 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 app.use(helmet());
 app.use(cors({
   origin: CORS_ORIGIN,
-  methods: ['GET', 'POST']
+  methods: ['GET', 'POST', 'PATCH', 'OPTIONS']
 }));
 app.use(express.json());
 
