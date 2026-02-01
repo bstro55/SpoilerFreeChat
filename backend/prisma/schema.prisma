@@ -1,10 +1,12 @@
 // Prisma Schema for SpoilerFreeChat
 // Database: Supabase PostgreSQL
 //
-// This schema defines three main models:
+// This schema defines five main models:
 // - Room: Chat rooms for specific games/events
 // - Message: Persisted chat messages
 // - Session: User sessions for reconnection support
+// - User: Authenticated users with preferences (Phase 7)
+// - RecentRoom: Tracks recently visited rooms per user (Phase 7)
 
 generator client {
   provider = "prisma-client-js"
@@ -13,6 +15,42 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// Authenticated user account (optional - guests don't have one)
+// The id matches Supabase Auth UUID for easy integration
+model User {
+  id                String       @id // Supabase Auth UUID (not auto-generated)
+  email             String?      @unique
+
+  // User preferences (synced across devices)
+  preferredNickname String?      // Default nickname for new rooms
+  theme             String       @default("system") // "light", "dark", "system"
+  notificationSound Boolean      @default(true)
+
+  // Metadata
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relations
+  sessions          Session[]
+  recentRooms       RecentRoom[]
+}
+
+// Tracks recently visited rooms for authenticated users
+// Enables "quick rejoin" feature on the join screen
+model RecentRoom {
+  id        String   @id @default(cuid())
+  userId    String
+  roomCode  String   // The room's user-friendly code
+  nickname  String   // Nickname used in this room
+  visitedAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomCode]) // One entry per room per user
+  @@index([userId, visitedAt]) // For sorting recent rooms by visit time
 }
 
 // Represents a chat room for a specific game/event
@@ -52,6 +90,9 @@ model Session {
   roomId           String
   nickname         String
 
+  // Optional link to authenticated user (null for guests)
+  userId           String?
+
   // Game time sync data (nullable until user syncs)
   gameTimeQuarter  Int?
   gameTimeMinutes  Int?
@@ -68,10 +109,12 @@ model Session {
 
   // Relations
   room             Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   messages         Message[]
 
   @@unique([roomId, nickname])  // Prevent duplicate nicknames in same room
   @@index([currentSocketId])     // For looking up session by socket
   @@index([lastSeenAt])          // For session cleanup
   @@index([roomId, isActive])    // For listing active users in room
+  @@index([userId])              // For finding user's sessions
 }

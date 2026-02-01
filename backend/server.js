@@ -12,6 +12,8 @@ const messageQueue = require('./services/messageQueue');
 const rateLimiter = require('./services/rateLimiter');
 const validation = require('./services/validation');
 const sessionManager = require('./services/sessionManager');
+const authService = require('./services/authService');
+const userService = require('./services/userService');
 
 // Create Express app and HTTP server
 const app = express();
@@ -77,9 +79,101 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ============================================
+// Authentication Middleware & REST Endpoints
+// ============================================
+
+/**
+ * Auth middleware - verifies Supabase JWT and attaches user to request
+ * Returns 401 if no valid token is provided
+ */
+async function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Authorization required' });
+  }
+
+  const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+  const user = await authService.authenticateToken(token);
+
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+
+  req.user = user;
+  next();
+}
+
+/**
+ * GET /api/user/preferences
+ * Get the current user's preferences
+ */
+app.get('/api/user/preferences', requireAuth, async (req, res) => {
+  try {
+    const preferences = await userService.getPreferences(req.user.id);
+    res.json(preferences || {});
+  } catch (error) {
+    console.error('Error getting preferences:', error);
+    res.status(500).json({ error: 'Failed to get preferences' });
+  }
+});
+
+/**
+ * PATCH /api/user/preferences
+ * Update the current user's preferences
+ */
+app.patch('/api/user/preferences', requireAuth, async (req, res) => {
+  try {
+    const { preferredNickname, theme, notificationSound } = req.body;
+    const updated = await userService.updatePreferences(req.user.id, {
+      preferredNickname,
+      theme,
+      notificationSound,
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating preferences:', error);
+    if (error.message.includes('must be')) {
+      // Validation error
+      res.status(400).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to update preferences' });
+    }
+  }
+});
+
+/**
+ * GET /api/user/recent-rooms
+ * Get the current user's recent rooms for quick rejoin
+ */
+app.get('/api/user/recent-rooms', requireAuth, async (req, res) => {
+  try {
+    const recentRooms = await userService.getRecentRooms(req.user.id);
+    res.json(recentRooms);
+  } catch (error) {
+    console.error('Error getting recent rooms:', error);
+    res.status(500).json({ error: 'Failed to get recent rooms' });
+  }
+});
+
 // Socket.IO connection handling
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
   console.log(`User connected: ${socket.id}`);
+
+  // Authenticate if token provided (optional - guests don't have tokens)
+  const token = socket.handshake.auth?.token;
+  if (token) {
+    try {
+      const user = await authService.authenticateToken(token);
+      if (user) {
+        socket.authenticatedUser = user;
+        console.log(`Authenticated user: ${user.email || user.id}`);
+      }
+    } catch (error) {
+      // Invalid token - continue as guest (don't block connection)
+      console.log('Invalid auth token, continuing as guest');
+    }
+  }
 
   // Handle joining a room (now async for database operations)
   socket.on('join-room', async (data) => {
@@ -112,6 +206,16 @@ io.on('connection', (socket) => {
 
       // Connect session (update socket ID in database)
       await sessionManager.connectSession(session.id, socket.id);
+
+      // If user is authenticated, link session to their account and track room
+      if (socket.authenticatedUser) {
+        await userService.linkSessionToUser(session.id, socket.authenticatedUser.id);
+        await userService.trackRecentRoom(
+          socket.authenticatedUser.id,
+          sanitizedRoomId,
+          sanitizedNickname
+        );
+      }
 
       // Load message history from database and initialize room
       const dbMessages = await roomManager.loadMessagesFromDb(dbRoom.id);

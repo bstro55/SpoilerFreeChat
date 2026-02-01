@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import useChatStore from '../store/chatStore';
+import useAuthStore from '../store/authStore';
 
 /**
  * Socket.IO Connection Hook
@@ -90,13 +91,20 @@ export function useSocket() {
 
   // Initialize socket connection
   useEffect(() => {
-    // Create socket connection
+    // Get auth token if user is logged in (optional - guests won't have one)
+    const token = useAuthStore.getState().getAccessToken();
+
+    // Create socket connection with optional auth token
     socketRef.current = io(SOCKET_URL, {
       // Reconnection settings
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000
+      reconnectionDelayMax: 5000,
+      // Pass auth token if available (for authenticated users)
+      auth: {
+        token: token
+      }
     });
 
     const socket = socketRef.current;
