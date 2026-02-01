@@ -240,3 +240,28 @@ Manual testing with multiple browser tabs:
 ## Other Future Polish
 
 - **Google OAuth Verification**: Submit app to Google for verification to remove the "unverified app" warning during sign-in. Requires privacy policy and terms of service.
+
+## UX Improvements (Identified 2026-02-01)
+
+These improvements were identified during Phase 7/8 testing and should be addressed in a future session:
+
+### Navigation & Multi-Room Support
+- **Home/Back button**: Add a way to return to the main screen without "Leave Room" (which clears session)
+- **Room switcher**: Consider supporting multiple active rooms or at least easier room switching
+- **Breadcrumb navigation**: Show current location (e.g., "Home > Room: Lakers-Game")
+
+### Room Creation vs Joining
+- **Separate flows**: Distinguish between "Create New Room" and "Join Existing Room"
+- **Auto-generated room codes**: When creating, auto-generate a shareable code (e.g., "LAKERS-X7K2")
+- **Custom room codes**: Let creators choose their own code if they prefer
+- **Room discovery**: Consider if rooms should be listed/searchable (privacy implications)
+
+### Sign-In Benefits Clarity
+- **Onboarding**: Explain what signing in provides (saved preferences, recent rooms, etc.)
+- **Guest limitations**: Make clear what guests can't do (no saved preferences, no room history)
+- **Preferences visibility**: Make the gear/settings button more discoverable
+
+### General UX
+- **Empty state for Recent Rooms**: Show "Join rooms to see them here" for signed-in users with no history
+- **Room persistence indicator**: Show users they're reconnected vs starting fresh
+- **Loading states**: Better feedback during reconnection attempts

@@ -116,6 +116,18 @@ export function useSocket() {
       console.log('Connected to server');
       setConnected(true);
       setConnectionError(null);
+
+      // Auto-reconnect: Check for stored session and rejoin automatically
+      const storedSession = getStoredSession();
+      if (storedSession && storedSession.sessionId) {
+        console.log('Found stored session, auto-reconnecting to room:', storedSession.roomId);
+        socket.emit('join-room', {
+          roomId: storedSession.roomId,
+          nickname: storedSession.nickname,
+          sessionId: storedSession.sessionId,
+          sportType: storedSession.sportType || 'basketball'
+        });
+      }
     });
 
     socket.on('disconnect', (reason) => {
