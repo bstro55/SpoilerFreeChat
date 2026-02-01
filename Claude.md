@@ -82,21 +82,34 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## ⚠️ NEXT SESSION: Testing Required
 
-**Priority for next session:** Before moving to Phase 9, we need to thoroughly test:
+**Session 2026-02-01 Fixes Applied:**
+- Fixed white screen crash when Supabase env vars missing (graceful fallback to guest-only mode)
+- Fixed AuthModal crash on React 19 (replaced @supabase/auth-ui-react with custom OAuth button)
+- Added Magic Link sign-in option alongside Google OAuth
+- Fixed Prisma + PgBouncer "prepared statement already exists" error (added `?pgbouncer=true` to DATABASE_URL)
+- Added missing Vercel environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SOCKET_URL`
 
-### Phase 7 (Authentication) - Not fully tested
-- [ ] Google OAuth sign-in flow (click sign in, complete OAuth, verify session)
+**Verified Working (2026-02-01):**
+- [x] Room joining works on production
+- [x] Sending messages works
+- [x] Google OAuth sign-in modal opens
+- [x] Magic Link option visible in sign-in modal
+- [x] Sport selector UI displays all 4 sports with emojis
+- [x] Guest users can join rooms without signing in
+
+**Still Needs Testing:**
+
+### Phase 7 (Authentication)
+- [ ] Complete Google OAuth flow (click sign in → complete OAuth → verify session persists)
 - [ ] Sign out functionality
 - [ ] Preferred nickname saves and loads correctly
-- [ ] Theme preference persists
+- [ ] Theme preference persists across sessions
 - [ ] Notification sound preference persists
-- [ ] Recent rooms list populates after joining rooms
+- [ ] Recent rooms list populates after joining rooms (requires sign-in)
 - [ ] Quick rejoin from recent rooms works
-- [ ] Guest users still work without signing in
-- [ ] JWT token verification on backend
+- [ ] Magic Link email delivery and sign-in flow
 
-### Phase 8 (Multi-Sport Support) - Not tested yet
-- [ ] Sport selector UI displays all 4 sports with emojis
+### Phase 8 (Multi-Sport Support)
 - [ ] First joiner sets room's sport type
 - [ ] Second joiner inherits room's sport (not their selection)
 - [ ] Basketball: 4 quarters, 12-minute clock countdown
@@ -105,7 +118,7 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - [ ] Soccer: 2 halves, clock counts UP (stoppage time support)
 - [ ] TimeSync component shows correct period labels per sport
 - [ ] Message delays work correctly across all sports
-- [ ] Recent rooms show sport emoji
+- [ ] Recent rooms show sport emoji (requires sign-in)
 - [ ] Reconnection restores sport type and sync state
 
 ## Decisions Made
