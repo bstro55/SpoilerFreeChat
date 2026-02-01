@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import useChatStore from '../store/chatStore';
+import AuthButton from './AuthButton';
 import TimeSync from './TimeSync';
 import SyncModal from './SyncModal';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { getSportConfig } from '../lib/sportConfig';
 
 /**
  * ChatRoom Component
@@ -38,8 +40,12 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
     lastSyncTime,
     isConnected,
     isReconnecting,
-    connectionError
+    connectionError,
+    sportType
   } = useChatStore();
+
+  // Get sport config for display
+  const sportConfig = getSportConfig(sportType);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -119,10 +125,13 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
       )}
 
       {/* Header */}
-      <header className="border-b border-zinc-200 bg-white px-4 py-3">
+      <header className="border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold">Room: {roomId}</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xl" title={sportConfig.label}>{sportConfig.emoji}</span>
+              <h2 className="text-lg font-semibold dark:text-zinc-100">Room: {roomId}</h2>
+            </div>
             <Badge variant="secondary">
               {users.length} user{users.length !== 1 ? 's' : ''}
             </Badge>
@@ -131,9 +140,10 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
             {isSynced && (
               <Badge variant="outline">{offsetFormatted}</Badge>
             )}
-            <span className="text-sm text-zinc-500">
-              Chatting as: <strong className="text-zinc-950">{nickname}</strong>
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">
+              Chatting as: <strong className="text-zinc-950 dark:text-zinc-100">{nickname}</strong>
             </span>
+            <AuthButton />
             <Button variant="outline" size="sm" onClick={onLeaveRoom}>
               Leave Room
             </Button>
