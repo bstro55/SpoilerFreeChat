@@ -13,7 +13,7 @@ import ChatRoom from './components/ChatRoom';
  */
 function App() {
   const { joinRoom, sendMessage, leaveRoom, syncGameTime } = useSocket();
-  const { roomId } = useChatStore();
+  const { roomId, pendingAutoReconnect } = useChatStore();
   const { initialize, isLoading, profile } = useAuthStore();
 
   // Initialize auth on mount
@@ -41,8 +41,17 @@ function App() {
   // Show loading while checking auth state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900">
         <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show reconnecting state while auto-reconnecting to stored session
+  if (pendingAutoReconnect && !roomId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900">
+        <div className="text-muted-foreground">Reconnecting to room...</div>
       </div>
     );
   }

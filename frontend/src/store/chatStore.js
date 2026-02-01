@@ -1,5 +1,20 @@
 import { create } from 'zustand';
 
+// Check if there's a stored session on initial load (before React renders)
+const SESSION_STORAGE_KEY = 'spoilerfree_session';
+function hasStoredSession() {
+  try {
+    const stored = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (stored) {
+      const session = JSON.parse(stored);
+      return !!(session && session.sessionId);
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Chat Store
  *
@@ -32,6 +47,7 @@ const useChatStore = create((set) => ({
   isConnected: false,
   isReconnecting: false,
   connectionError: null,
+  pendingAutoReconnect: hasStoredSession(), // True if we have a stored session to reconnect to
   setConnected: (connected) => set({
     isConnected: connected,
     isReconnecting: false,
@@ -39,6 +55,7 @@ const useChatStore = create((set) => ({
   }),
   setReconnecting: (reconnecting) => set({ isReconnecting: reconnecting }),
   setConnectionError: (error) => set({ connectionError: error }),
+  setPendingAutoReconnect: (pending) => set({ pendingAutoReconnect: pending }),
 
   // Room state
   roomId: null,

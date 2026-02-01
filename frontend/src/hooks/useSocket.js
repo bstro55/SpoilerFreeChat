@@ -78,6 +78,7 @@ export function useSocket() {
     setConnected,
     setReconnecting,
     setConnectionError,
+    setPendingAutoReconnect,
     setRoom,
     clearRoom,
     setUsers,
@@ -121,6 +122,7 @@ export function useSocket() {
       const storedSession = getStoredSession();
       if (storedSession && storedSession.sessionId) {
         console.log('Found stored session, auto-reconnecting to room:', storedSession.roomId);
+        setPendingAutoReconnect(true);
         socket.emit('join-room', {
           roomId: storedSession.roomId,
           nickname: storedSession.nickname,
@@ -175,6 +177,7 @@ export function useSocket() {
 
       // Update store with room info (including sessionId and sport info)
       setRoom(data.roomId, data.nickname, data.sessionId, data.sportType, data.sportConfig);
+      setPendingAutoReconnect(false); // Clear pending state now that we've joined
       setUsers(data.users);
       setMessages(data.messages || []);
 
@@ -258,12 +261,14 @@ export function useSocket() {
     socket.on('session-expired', (data) => {
       console.log('Session expired:', data.message);
       clearStoredSession();
+      setPendingAutoReconnect(false);
       setError(data.message);
     });
 
     // Error events
     socket.on('error', (data) => {
       console.error('Server error:', data);
+      setPendingAutoReconnect(false);
       setError(data.message);
     });
 
@@ -271,7 +276,7 @@ export function useSocket() {
     return () => {
       socket.disconnect();
     };
-  }, [setConnected, setReconnecting, setConnectionError, setRoom, clearRoom, setUsers, addUser, removeUser, setMessages, addMessage, setError, setSyncState, updateUserSync]);
+  }, [setConnected, setReconnecting, setConnectionError, setPendingAutoReconnect, setRoom, clearRoom, setUsers, addUser, removeUser, setMessages, addMessage, setError, setSyncState, updateUserSync]);
 
   // Join a room (with session support for reconnection)
   // sportType is only used when creating a new room (first joiner sets sport)
