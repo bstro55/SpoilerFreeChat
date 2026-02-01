@@ -11,28 +11,32 @@
  *     users: Map<socketId, User>,
  *     messages: Array<Message>,  // Recent messages cache
  *     createdAt: number,
- *     dbId: string | null        // Database ID for the room
+ *     dbId: string | null,       // Database ID for the room
+ *     sportType: string          // Sport type (Phase 8)
  *   }
  * - User: {
  *     id: string,                // Socket ID
  *     sessionId: string,         // Database session ID (for persistence)
  *     nickname: string,
  *     joinedAt: number,
- *     gameTime: { quarter, minutes, seconds } | null,
+ *     gameTime: { period, minutes, seconds } | null,  // 'period' instead of 'quarter' for multi-sport
  *     elapsedSeconds: number | null,
  *     offset: number
  *   }
  * - Message: { id, senderId, nickname, content, timestamp }
  *
- * OFFSET CALCULATION (unchanged from before):
- * Based purely on GAME TIME, not real-world time.
- * 1. Convert each user's game time to elapsed seconds
+ * OFFSET CALCULATION (unchanged - sport-agnostic):
+ * Based purely on elapsed GAME TIME, not real-world time.
+ * 1. Convert each user's game time to elapsed seconds (sport-aware)
  * 2. Find the MAX elapsed time (most advanced user = "live")
  * 3. Each user's offset = (max elapsed - their elapsed) * 1000ms
+ *
+ * Updated in Phase 8 to support multiple sports.
  */
 
 const timeUtils = require('./timeUtils');
 const prisma = require('./database');
+const { DEFAULT_SPORT } = require('./sportConfig');
 
 // Maximum number of messages to keep in room history (in-memory cache)
 const MAX_MESSAGES_PER_ROOM = 50;
@@ -53,7 +57,8 @@ function getRoom(roomId) {
       users: new Map(),
       messages: [],
       createdAt: Date.now(),
-      dbId: null  // Will be set when synced with database
+      dbId: null,  // Will be set when synced with database
+      sportType: DEFAULT_SPORT  // Default to basketball for backwards compatibility
     });
   }
   return rooms.get(roomId);
@@ -66,10 +71,12 @@ function getRoom(roomId) {
  * @param {string} roomId - The room identifier (roomCode)
  * @param {string} dbRoomId - The database ID for the room
  * @param {Array} messages - Recent messages from database
+ * @param {string} sportType - The sport type for this room (Phase 8)
  */
-function initializeRoom(roomId, dbRoomId, messages = []) {
+function initializeRoom(roomId, dbRoomId, messages = [], sportType = DEFAULT_SPORT) {
   const room = getRoom(roomId);
   room.dbId = dbRoomId;
+  room.sportType = sportType;  // Set sport type from database
 
   // Load messages from database into memory (if not already loaded)
   if (room.messages.length === 0 && messages.length > 0) {
@@ -83,6 +90,7 @@ function initializeRoom(roomId, dbRoomId, messages = []) {
     console.log(`[Room ${roomId}] Loaded ${messages.length} messages from database`);
   }
 
+  console.log(`[Room ${roomId}] Initialized with sport type: ${sportType}`);
   return room;
 }
 
@@ -122,8 +130,9 @@ function addUser(roomId, socketId, nickname, sessionId = null, restoredGameTime 
     nickname,
     joinedAt: Date.now(),
     // Game time sync fields - null until user syncs (or restored)
+    // Uses 'period' as generic term (works for quarters, periods, halves)
     gameTime: restoredGameTime ? {
-      quarter: restoredGameTime.quarter,
+      period: restoredGameTime.period ?? restoredGameTime.quarter,  // Support both for backwards compat
       minutes: restoredGameTime.minutes,
       seconds: restoredGameTime.seconds
     } : null,
@@ -193,12 +202,12 @@ function recalculateOffsets(roomId) {
  *
  * @param {string} roomId - The room identifier
  * @param {string} socketId - The user's socket ID
- * @param {number} quarter - Current quarter (1-4)
- * @param {number} minutes - Minutes on clock (0-12)
+ * @param {number} period - Current period (1-based: quarter, period, half depending on sport)
+ * @param {number} minutes - Minutes on clock
  * @param {number} seconds - Seconds on clock (0-59)
  * @returns {Object} { success, offset, offsetFormatted, isBaseline, error?, updatedUsers? }
  */
-function updateUserGameTime(roomId, socketId, quarter, minutes, seconds) {
+function updateUserGameTime(roomId, socketId, period, minutes, seconds) {
   const room = rooms.get(roomId);
   if (!room) {
     return { success: false, error: 'Room not found' };
@@ -209,20 +218,25 @@ function updateUserGameTime(roomId, socketId, quarter, minutes, seconds) {
     return { success: false, error: 'User not found' };
   }
 
-  // Validate the game time input
-  const validation = timeUtils.validateGameTime(quarter, minutes, seconds);
+  // Get sport type for this room (for validation and conversion)
+  const sportType = room.sportType || DEFAULT_SPORT;
+
+  // Validate the game time input using sport-specific rules
+  const validation = timeUtils.validateGameTime(period, minutes, seconds, sportType);
   if (!validation.valid) {
     return { success: false, error: validation.error };
   }
 
-  // Store the game time
-  user.gameTime = { quarter, minutes, seconds };
+  // Store the game time (using generic 'period' for all sports)
+  user.gameTime = { period, minutes, seconds };
 
-  // Calculate elapsed seconds from game start
-  const elapsedSeconds = timeUtils.gameTimeToElapsedSeconds(quarter, minutes, seconds);
+  // Calculate elapsed seconds from game start using sport-specific conversion
+  const elapsedSeconds = timeUtils.gameTimeToElapsedSeconds(period, minutes, seconds, sportType);
   user.elapsedSeconds = elapsedSeconds;
 
-  console.log(`[Room ${roomId}] ${user.nickname} synced at Q${quarter} ${minutes}:${seconds.toString().padStart(2, '0')}`);
+  // Get display format for logging
+  const displayTime = timeUtils.elapsedSecondsToGameTime(elapsedSeconds, sportType);
+  console.log(`[Room ${roomId}] ${user.nickname} synced at ${displayTime.display} (${sportType})`);
   console.log(`  → Elapsed game time: ${elapsedSeconds} seconds`);
 
   // Recalculate all offsets
@@ -405,6 +419,16 @@ function getRoomMessages(roomId) {
 }
 
 /**
+ * Get the sport type for a room
+ * @param {string} roomId - The room identifier
+ * @returns {string} The sport type (defaults to 'basketball')
+ */
+function getRoomSportType(roomId) {
+  const room = rooms.get(roomId);
+  return room?.sportType || DEFAULT_SPORT;
+}
+
+/**
  * Get statistics about current server state (useful for debugging)
  * @returns {Object} Server statistics
  */
@@ -413,6 +437,7 @@ function getStats() {
     totalRooms: rooms.size,
     rooms: Array.from(rooms.entries()).map(([id, room]) => ({
       id,
+      sportType: room.sportType || DEFAULT_SPORT,
       userCount: room.users.size,
       messageCount: room.messages.length,
       syncedUsers: Array.from(room.users.values()).filter(u => u.gameTime !== null).length
@@ -436,6 +461,8 @@ module.exports = {
   getUserOffset,
   hasUserSynced,
   recalculateOffsets,
+  // Sport type (Phase 8)
+  getRoomSportType,
   // Constants
   MAX_MESSAGES_PER_ROOM
 };

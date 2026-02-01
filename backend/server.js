@@ -14,6 +14,7 @@ const validation = require('./services/validation');
 const sessionManager = require('./services/sessionManager');
 const authService = require('./services/authService');
 const userService = require('./services/userService');
+const { getSportConfig, DEFAULT_SPORT } = require('./services/sportConfig');
 
 // Create Express app and HTTP server
 const app = express();
@@ -178,7 +179,7 @@ io.on('connection', async (socket) => {
   // Handle joining a room (now async for database operations)
   socket.on('join-room', async (data) => {
     try {
-      const { roomId, nickname, sessionId: clientSessionId } = data;
+      const { roomId, nickname, sessionId: clientSessionId, sportType } = data;
 
       // Validate and sanitize room ID
       const roomValidation = validation.validateRoomId(roomId);
@@ -194,15 +195,30 @@ io.on('connection', async (socket) => {
         return;
       }
 
+      // Validate and sanitize sport type (if provided)
+      let sanitizedSportType = DEFAULT_SPORT;
+      if (sportType) {
+        const sportValidation = validation.validateSportType(sportType);
+        if (!sportValidation.valid) {
+          socket.emit('error', { message: sportValidation.error });
+          return;
+        }
+        sanitizedSportType = sportValidation.sanitized;
+      }
+
       const sanitizedRoomId = roomValidation.sanitized;
       const sanitizedNickname = nicknameValidation.sanitized;
 
-      // Get or create session in database
+      // Get or create session in database (pass sport type for new rooms)
       const { session, room: dbRoom, isReconnect } = await sessionManager.getOrCreateSession(
         sanitizedRoomId,
         sanitizedNickname,
-        clientSessionId
+        clientSessionId,
+        sanitizedSportType
       );
+
+      // Use the room's sport type (first joiner sets it, subsequent joiners use existing)
+      const effectiveSportType = dbRoom.sportType || DEFAULT_SPORT;
 
       // Connect session (update socket ID in database)
       await sessionManager.connectSession(session.id, socket.id);
@@ -213,13 +229,17 @@ io.on('connection', async (socket) => {
         await userService.trackRecentRoom(
           socket.authenticatedUser.id,
           sanitizedRoomId,
-          sanitizedNickname
+          sanitizedNickname,
+          effectiveSportType  // Phase 8: Track sport type
         );
       }
 
-      // Load message history from database and initialize room
+      // Load message history from database and initialize room with sport type
       const dbMessages = await roomManager.loadMessagesFromDb(dbRoom.id);
-      roomManager.initializeRoom(sanitizedRoomId, dbRoom.id, dbMessages);
+      roomManager.initializeRoom(sanitizedRoomId, dbRoom.id, dbMessages, effectiveSportType);
+
+      // Store sport type on socket for sync-game-time
+      socket.sportType = effectiveSportType;
 
       // Get restored game time if reconnecting
       let restoredGameTime = null;
@@ -255,7 +275,7 @@ io.on('connection', async (socket) => {
       let syncState = null;
       if (restoredGameTime) {
         syncState = {
-          quarter: restoredGameTime.quarter,
+          period: restoredGameTime.period ?? restoredGameTime.quarter,  // Support both for backwards compat
           minutes: restoredGameTime.minutes,
           seconds: restoredGameTime.seconds,
           offset: user.offset,
@@ -263,6 +283,9 @@ io.on('connection', async (socket) => {
           isBaseline: user.offset === 0
         };
       }
+
+      // Get sport config to send to frontend
+      const sportConfig = getSportConfig(effectiveSportType);
 
       // Send confirmation to the joining user
       socket.emit('joined-room', {
@@ -272,7 +295,17 @@ io.on('connection', async (socket) => {
         messages,
         sessionId: session.id,  // Send session ID for client storage
         isReconnect,
-        syncState  // Restored sync state (null if new user)
+        syncState,  // Restored sync state (null if new user)
+        // Sport info (Phase 8)
+        sportType: effectiveSportType,
+        sportConfig: {
+          periods: sportConfig.periods,
+          periodLabel: sportConfig.periodLabel,
+          periodLabelShort: sportConfig.periodLabelShort,
+          periodDurationMinutes: sportConfig.periodDurationMinutes,
+          clockDirection: sportConfig.clockDirection,
+          maxMinutes: sportConfig.maxMinutes
+        }
       });
 
       // Notify others in the room (include sync status)
@@ -295,10 +328,13 @@ io.on('connection', async (socket) => {
   // Handle game time synchronization
   socket.on('sync-game-time', async (data) => {
     try {
-      const { quarter, minutes, seconds } = data;
+      // Accept both 'period' (new) and 'quarter' (backwards compat) from client
+      const period = data.period ?? data.quarter;
+      const { minutes, seconds } = data;
       const roomId = socket.roomId;
       const nickname = socket.nickname;
       const sessionId = socket.sessionId;
+      const sportType = socket.sportType || DEFAULT_SPORT;
 
       // Validate user is in a room
       if (!roomId || !nickname) {
@@ -306,11 +342,11 @@ io.on('connection', async (socket) => {
         return;
       }
 
-      // Update user's game time and calculate offset
+      // Update user's game time and calculate offset (uses room's sport type)
       const result = roomManager.updateUserGameTime(
         roomId,
         socket.id,
-        quarter,
+        period,
         minutes,
         seconds
       );
@@ -324,7 +360,7 @@ io.on('connection', async (socket) => {
       if (sessionId) {
         sessionManager.updateSessionGameTime(
           sessionId,
-          { quarter, minutes, seconds },
+          { period, minutes, seconds },
           result.elapsedSeconds
         ).catch(err => {
           console.error(`Failed to persist game time for ${nickname}:`, err.message);
@@ -333,7 +369,7 @@ io.on('connection', async (socket) => {
 
       // Send confirmation to the user with their offset
       socket.emit('sync-confirmed', {
-        quarter,
+        period,
         minutes,
         seconds,
         offset: result.offset,
@@ -377,7 +413,10 @@ io.on('connection', async (socket) => {
         }
       }
 
-      console.log(`${nickname} synced in ${roomId}: Q${quarter} ${minutes}:${seconds.toString().padStart(2, '0')} - ${result.offsetFormatted}`);
+      // Get display format for logging
+      const timeUtils = require('./services/timeUtils');
+      const displayTime = timeUtils.elapsedSecondsToGameTime(result.elapsedSeconds, sportType);
+      console.log(`${nickname} synced in ${roomId}: ${displayTime.display} (${sportType}) - ${result.offsetFormatted}`);
     } catch (error) {
       console.error('Error in sync-game-time:', error);
       socket.emit('error', { message: 'Failed to sync game time. Please try again.' });

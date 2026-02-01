@@ -15,8 +15,12 @@ import { create } from 'zustand';
  * - messages: Array of messages in the current room
  * - error: Current error message (null if no error)
  *
- * Game Time Sync State (Phase 2):
- * - gameTime: { quarter, minutes, seconds } - User's current game time
+ * Sport State (Phase 8):
+ * - sportType: The sport type for the current room (e.g., 'basketball', 'soccer')
+ * - sportConfig: Sport-specific configuration from server
+ *
+ * Game Time Sync State (Phase 2, updated Phase 8):
+ * - gameTime: { period, minutes, seconds } - User's current game time
  * - isSynced: Whether the user has synced their game time
  * - offset: Delay in milliseconds relative to baseline
  * - offsetFormatted: Human-readable offset (e.g., "23 seconds behind")
@@ -40,11 +44,16 @@ const useChatStore = create((set) => ({
   roomId: null,
   nickname: null,
   sessionId: null,  // Database session ID for reconnection
-  setRoom: (roomId, nickname, sessionId = null) => set({ roomId, nickname, sessionId }),
+  sportType: null,  // Sport type for the room (Phase 8)
+  sportConfig: null, // Sport-specific config from server (Phase 8)
+  setRoom: (roomId, nickname, sessionId = null, sportType = null, sportConfig = null) =>
+    set({ roomId, nickname, sessionId, sportType, sportConfig }),
   clearRoom: () => set({
     roomId: null,
     nickname: null,
     sessionId: null,
+    sportType: null,
+    sportConfig: null,
     users: [],
     messages: [],
     // Reset sync state when leaving room
@@ -86,8 +95,8 @@ const useChatStore = create((set) => ({
   setError: (error) => set({ error }),
   clearError: () => set({ error: null }),
 
-  // Game Time Sync State (Phase 2)
-  gameTime: null, // { quarter, minutes, seconds }
+  // Game Time Sync State (Phase 2, updated Phase 8 for multi-sport)
+  gameTime: null, // { period, minutes, seconds } - 'period' is generic for quarter/period/half
   isSynced: false,
   offset: 0, // milliseconds
   offsetFormatted: 'Not synced',

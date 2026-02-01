@@ -8,10 +8,13 @@
  * - XSS is primarily handled by React's default escaping on the frontend
  * - We still sanitize inputs server-side as defense in depth
  * - Never trust client-side validation alone
+ *
+ * Updated in Phase 8 to support multi-sport validation.
  */
 
 const validator = require('validator');
 const Filter = require('bad-words');
+const { isValidSportType, getValidSportTypes, getSportConfig, DEFAULT_SPORT } = require('./sportConfig');
 
 // Initialize profanity filter
 // This blocks offensive words in nicknames
@@ -162,42 +165,93 @@ function validateRoomId(roomId) {
 }
 
 /**
- * Validate game time values
- * - Quarter: 1-4
- * - Minutes: 0-12
- * - Seconds: 0-59
- * - Special case: 12:XX only valid when seconds is 0
+ * Validate sport type
  *
- * @param {number} quarter - Quarter number
+ * @param {string} sportType - Sport identifier
+ * @returns {Object} { valid: boolean, sanitized?: string, error?: string }
+ */
+function validateSportType(sportType) {
+  if (typeof sportType !== 'string') {
+    return { valid: false, error: 'Sport type must be a string' };
+  }
+
+  const normalized = sportType.toLowerCase().trim();
+
+  if (!isValidSportType(normalized)) {
+    const validTypes = getValidSportTypes().join(', ');
+    return {
+      valid: false,
+      error: `Invalid sport type. Must be one of: ${validTypes}`,
+    };
+  }
+
+  return { valid: true, sanitized: normalized };
+}
+
+/**
+ * Validate game time values (multi-sport support)
+ *
+ * Validation rules vary by sport:
+ * - Basketball: 4 quarters, 12 min max (clock counts DOWN)
+ * - Football: 4 quarters, 15 min max (clock counts DOWN)
+ * - Hockey: 3 periods, 20 min max (clock counts DOWN)
+ * - Soccer: 2 halves, 59 min max for stoppage time (clock counts UP)
+ *
+ * @param {number} period - Period number (1-based)
  * @param {number} minutes - Minutes on clock
  * @param {number} seconds - Seconds on clock
+ * @param {string} sportType - Sport identifier (default: 'basketball')
  * @returns {Object} { valid: boolean, error?: string }
  */
-function validateGameTime(quarter, minutes, seconds) {
+function validateGameTime(period, minutes, seconds, sportType = DEFAULT_SPORT) {
+  const config = getSportConfig(sportType);
+
   // Ensure all values are numbers
-  const q = parseInt(quarter, 10);
+  const p = parseInt(period, 10);
   const m = parseInt(minutes, 10);
   const s = parseInt(seconds, 10);
 
-  if (isNaN(q) || isNaN(m) || isNaN(s)) {
+  if (isNaN(p) || isNaN(m) || isNaN(s)) {
     return { valid: false, error: 'Game time values must be numbers' };
   }
 
-  if (q < 1 || q > 4) {
-    return { valid: false, error: 'Quarter must be 1-4' };
+  // Validate period based on sport
+  if (p < 1 || p > config.periods) {
+    return {
+      valid: false,
+      error: `${config.periodLabel} must be 1-${config.periods}`,
+    };
   }
 
-  if (m < 0 || m > 12) {
-    return { valid: false, error: 'Minutes must be 0-12' };
-  }
-
+  // Validate seconds (same for all sports)
   if (s < 0 || s > 59) {
     return { valid: false, error: 'Seconds must be 0-59' };
   }
 
-  // 12:XX is only valid when seconds is 0 (quarter start)
-  if (m === 12 && s > 0) {
-    return { valid: false, error: 'Time cannot exceed 12:00' };
+  // Validate minutes based on sport and clock direction
+  if (config.clockDirection === 'down') {
+    // COUNTDOWN sports: max minutes is the period duration
+    if (m < 0 || m > config.periodDurationMinutes) {
+      return {
+        valid: false,
+        error: `Minutes must be 0-${config.periodDurationMinutes}`,
+      };
+    }
+    // Full duration only valid with 0 seconds (period start)
+    if (m === config.periodDurationMinutes && s > 0) {
+      return {
+        valid: false,
+        error: `Time cannot exceed ${config.periodDurationMinutes}:00`,
+      };
+    }
+  } else {
+    // COUNTUP sports (soccer): allow up to maxMinutes for stoppage time
+    if (m < 0 || m > config.maxMinutes) {
+      return {
+        valid: false,
+        error: `Minutes must be 0-${config.maxMinutes}`,
+      };
+    }
   }
 
   return { valid: true };
@@ -207,5 +261,6 @@ module.exports = {
   validateNickname,
   validateMessage,
   validateRoomId,
-  validateGameTime
+  validateGameTime,
+  validateSportType,
 };

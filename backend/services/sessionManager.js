@@ -29,14 +29,16 @@ const RECONNECT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
  * @param {string} roomCode - The room identifier
  * @param {string} nickname - The user's display name
  * @param {string|null} existingSessionId - Session ID from client (if reconnecting)
+ * @param {string} sportType - Sport type for new rooms (Phase 8)
  * @returns {Promise<{session: Object, room: Object, isReconnect: boolean}>}
  */
-async function getOrCreateSession(roomCode, nickname, existingSessionId = null) {
+async function getOrCreateSession(roomCode, nickname, existingSessionId = null, sportType = 'basketball') {
   // First, ensure the room exists (create if it doesn't)
+  // First joiner's sport type is used; existing rooms keep their type
   const room = await prisma.room.upsert({
     where: { roomCode },
-    create: { roomCode },
-    update: { lastActivityAt: new Date() }
+    create: { roomCode, sportType },  // Set sport type on creation
+    update: { lastActivityAt: new Date() }  // Don't change sport type for existing rooms
   });
 
   // If client provided a session ID, try to reconnect to it
@@ -136,14 +138,17 @@ async function disconnectSession(sessionId) {
  * Called when user syncs their game time
  *
  * @param {string} sessionId - The session ID
- * @param {Object} gameTime - { quarter, minutes, seconds }
+ * @param {Object} gameTime - { period, minutes, seconds } (accepts 'quarter' for backwards compat)
  * @param {number} elapsedSeconds - Calculated elapsed seconds
  */
 async function updateSessionGameTime(sessionId, gameTime, elapsedSeconds) {
+  // Support both 'period' (new) and 'quarter' (backwards compat)
+  const period = gameTime.period ?? gameTime.quarter;
+
   await prisma.session.update({
     where: { id: sessionId },
     data: {
-      gameTimeQuarter: gameTime.quarter,
+      gameTimeQuarter: period,  // Column name kept for backwards compat, but stores period
       gameTimeMinutes: gameTime.minutes,
       gameTimeSeconds: gameTime.seconds,
       elapsedSeconds: elapsedSeconds,
@@ -173,8 +178,10 @@ async function getSessionGameTime(sessionId) {
     return null;
   }
 
+  // Return as 'period' (new name) but also include 'quarter' for backwards compat
   return {
-    quarter: session.gameTimeQuarter,
+    period: session.gameTimeQuarter,  // New name
+    quarter: session.gameTimeQuarter, // Backwards compat
     minutes: session.gameTimeMinutes,
     seconds: session.gameTimeSeconds,
     elapsedSeconds: session.elapsedSeconds

@@ -44,13 +44,15 @@ function getStoredSession() {
  * @param {string} roomId
  * @param {string} nickname
  * @param {string} sessionId
+ * @param {string} sportType - Sport type for the room (Phase 8)
  */
-function storeSession(roomId, nickname, sessionId) {
+function storeSession(roomId, nickname, sessionId, sportType = null) {
   try {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
       roomId,
       nickname,
-      sessionId
+      sessionId,
+      sportType
     }));
   } catch (e) {
     console.error('Error storing session in localStorage:', e);
@@ -154,13 +156,13 @@ export function useSocket() {
     socket.on('joined-room', (data) => {
       console.log('Joined room:', data);
 
-      // Store session in localStorage for future reconnection
+      // Store session in localStorage for future reconnection (include sportType)
       if (data.sessionId) {
-        storeSession(data.roomId, data.nickname, data.sessionId);
+        storeSession(data.roomId, data.nickname, data.sessionId, data.sportType);
       }
 
-      // Update store with room info (including sessionId)
-      setRoom(data.roomId, data.nickname, data.sessionId);
+      // Update store with room info (including sessionId and sport info)
+      setRoom(data.roomId, data.nickname, data.sessionId, data.sportType, data.sportConfig);
       setUsers(data.users);
       setMessages(data.messages || []);
 
@@ -169,7 +171,8 @@ export function useSocket() {
         console.log('Restoring sync state from server:', data.syncState);
         setSyncState({
           gameTime: {
-            quarter: data.syncState.quarter,
+            // Support both 'period' (new) and 'quarter' (backwards compat)
+            period: data.syncState.period ?? data.syncState.quarter,
             minutes: data.syncState.minutes,
             seconds: data.syncState.seconds
           },
@@ -181,6 +184,10 @@ export function useSocket() {
 
       if (data.isReconnect) {
         console.log('Successfully reconnected to room with previous session');
+      }
+
+      if (data.sportType) {
+        console.log(`Room sport type: ${data.sportType}`);
       }
     });
 
@@ -199,11 +206,16 @@ export function useSocket() {
       addMessage(message);
     });
 
-    // Phase 2: Game time sync events
+    // Phase 2: Game time sync events (updated Phase 8 for multi-sport)
     socket.on('sync-confirmed', (data) => {
       console.log('Game time sync confirmed:', data);
       setSyncState({
-        gameTime: { quarter: data.quarter, minutes: data.minutes, seconds: data.seconds },
+        // Support both 'period' (new) and 'quarter' (backwards compat)
+        gameTime: {
+          period: data.period ?? data.quarter,
+          minutes: data.minutes,
+          seconds: data.seconds
+        },
         offset: data.offset,
         offsetFormatted: data.offsetFormatted,
         isBaseline: data.isBaseline
@@ -250,7 +262,8 @@ export function useSocket() {
   }, [setConnected, setReconnecting, setConnectionError, setRoom, clearRoom, setUsers, addUser, removeUser, setMessages, addMessage, setError, setSyncState, updateUserSync]);
 
   // Join a room (with session support for reconnection)
-  const joinRoom = useCallback((roomId, nickname) => {
+  // sportType is only used when creating a new room (first joiner sets sport)
+  const joinRoom = useCallback((roomId, nickname, sportType = 'basketball') => {
     if (socketRef.current) {
       // Check if we have a stored session for this room/nickname combo
       const storedSession = getStoredSession();
@@ -263,7 +276,7 @@ export function useSocket() {
         console.log('Found stored session, attempting reconnection...');
       }
 
-      socketRef.current.emit('join-room', { roomId, nickname, sessionId });
+      socketRef.current.emit('join-room', { roomId, nickname, sessionId, sportType });
     }
   }, []);
 
@@ -285,10 +298,11 @@ export function useSocket() {
     }
   }, [clearRoom]);
 
-  // Phase 2: Sync game time
-  const syncGameTime = useCallback((quarter, minutes, seconds) => {
+  // Phase 2: Sync game time (updated Phase 8 for multi-sport)
+  // Uses 'period' as generic term (works for quarters, periods, halves)
+  const syncGameTime = useCallback((period, minutes, seconds) => {
     if (socketRef.current) {
-      socketRef.current.emit('sync-game-time', { quarter, minutes, seconds });
+      socketRef.current.emit('sync-game-time', { period, minutes, seconds });
     }
   }, []);
 

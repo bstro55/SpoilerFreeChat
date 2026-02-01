@@ -98,13 +98,14 @@ async function updatePreferences(userId, preferences) {
  * @param {string} userId - The user's ID
  * @param {string} roomCode - The room code (e.g., "lakers-vs-celtics")
  * @param {string} nickname - The nickname used in this room
+ * @param {string} sportType - The sport type for the room (Phase 8)
  * @returns {Promise<void>}
  */
-async function trackRecentRoom(userId, roomCode, nickname) {
+async function trackRecentRoom(userId, roomCode, nickname, sportType = 'basketball') {
   if (!userId || !roomCode || !nickname) return;
 
   // Upsert the recent room entry
-  // If it already exists, update the visitedAt and nickname
+  // If it already exists, update the visitedAt, nickname, and sportType
   await prisma.recentRoom.upsert({
     where: {
       userId_roomCode: { userId, roomCode },
@@ -112,11 +113,13 @@ async function trackRecentRoom(userId, roomCode, nickname) {
     update: {
       visitedAt: new Date(),
       nickname: nickname,
+      sportType: sportType,
     },
     create: {
       userId,
       roomCode,
       nickname,
+      sportType: sportType,
     },
   });
 
@@ -166,6 +169,7 @@ async function getRecentRooms(userId) {
     select: {
       roomCode: true,
       nickname: true,
+      sportType: true,  // Phase 8: Include sport type
       visitedAt: true,
     },
   });

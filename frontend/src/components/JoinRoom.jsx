@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Clock } from 'lucide-react';
+import { getAllSports, DEFAULT_SPORT } from '../lib/sportConfig';
 
 /**
  * JoinRoom Component
@@ -25,6 +26,7 @@ function JoinRoom({ onJoin }) {
   const [nickname, setNickname] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [recentRooms, setRecentRooms] = useState([]);
+  const [sportType, setSportType] = useState(DEFAULT_SPORT);  // Phase 8: Sport selection
 
   // Set initial nickname from preferences when profile loads
   useEffect(() => {
@@ -53,13 +55,14 @@ function JoinRoom({ onJoin }) {
       return;
     }
 
-    onJoin(trimmedRoomCode, trimmedNickname);
+    // Pass sport type to join (first joiner sets sport for the room)
+    onJoin(trimmedRoomCode, trimmedNickname, sportType);
   };
 
-  // Quick join from recent room
+  // Quick join from recent room (use stored sport type or default)
   const handleQuickJoin = (room) => {
     clearError();
-    onJoin(room.roomCode, room.nickname);
+    onJoin(room.roomCode, room.nickname, room.sportType || DEFAULT_SPORT);
   };
 
   return (
@@ -105,6 +108,28 @@ function JoinRoom({ onJoin }) {
               </p>
             </div>
 
+            {/* Sport Selector (Phase 8) */}
+            <div className="space-y-2">
+              <Label>Sport</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {getAllSports().map((sport) => (
+                  <Button
+                    key={sport.id}
+                    type="button"
+                    variant={sportType === sport.id ? 'default' : 'outline'}
+                    className="h-auto py-2 flex flex-col items-center gap-0.5"
+                    onClick={() => setSportType(sport.id)}
+                  >
+                    <span className="text-lg">{sport.emoji}</span>
+                    <span className="text-xs font-medium">{sport.label}</span>
+                  </Button>
+                ))}
+              </div>
+              <p className="text-sm text-zinc-500">
+                First person to join sets the sport for the room
+              </p>
+            </div>
+
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
@@ -130,22 +155,28 @@ function JoinRoom({ onJoin }) {
                   Recent Rooms
                 </Label>
                 <div className="space-y-1">
-                  {recentRooms.slice(0, 3).map((room) => (
-                    <Button
-                      key={room.roomCode}
-                      variant="ghost"
-                      className="w-full justify-start text-left h-auto py-2"
-                      onClick={() => handleQuickJoin(room)}
-                      disabled={!isConnected}
-                    >
-                      <div>
-                        <div className="font-medium">{room.roomCode}</div>
-                        <div className="text-xs text-muted-foreground">
-                          as {room.nickname}
+                  {recentRooms.slice(0, 3).map((room) => {
+                    // Get sport config for emoji display
+                    const sports = getAllSports();
+                    const roomSport = sports.find(s => s.id === room.sportType) || sports[0];
+                    return (
+                      <Button
+                        key={room.roomCode}
+                        variant="ghost"
+                        className="w-full justify-start text-left h-auto py-2"
+                        onClick={() => handleQuickJoin(room)}
+                        disabled={!isConnected}
+                      >
+                        <span className="mr-2">{roomSport.emoji}</span>
+                        <div>
+                          <div className="font-medium">{room.roomCode}</div>
+                          <div className="text-xs text-muted-foreground">
+                            as {room.nickname}
+                          </div>
                         </div>
-                      </div>
-                    </Button>
-                  ))}
+                      </Button>
+                    );
+                  })}
                 </div>
               </div>
             </>

@@ -1,75 +1,85 @@
 /**
- * Time Utilities for SpoilerFreeChat
+ * Time Utilities for SpoilerFreeChat (Multi-Sport Support)
  *
  * This module handles all game time calculations and offset logic.
+ * Updated in Phase 8 to support multiple sports with different timing rules.
  *
  * KEY CONCEPTS:
  *
  * 1. Game Time: The clock shown during the broadcast (e.g., "8:42 left in Q3")
  *
  * 2. Elapsed Seconds: How many seconds of game time have passed since the game started.
- *    Basketball example: If we're at 8:42 left in Q3:
- *    - Q1 complete: 12:00 = 720 seconds
- *    - Q2 complete: 12:00 = 720 seconds
- *    - Q3 so far: 12:00 - 8:42 = 3:18 = 198 seconds
- *    - Total elapsed: 720 + 720 + 198 = 1638 seconds
+ *    This is the common unit that works across all sports.
  *
- * 3. Reference Point: When the game "started" in real-world time for this user.
+ * 3. Clock Direction: Different sports have different clock behavior:
+ *    - COUNTDOWN (basketball, football, hockey): Clock shows time REMAINING
+ *    - COUNTUP (soccer): Clock shows time ELAPSED
+ *
+ * 4. Reference Point: When the game "started" in real-world time for this user.
  *    Calculated as: currentRealTime - elapsedGameSeconds
  *
- *    If User A is at 8:42 Q3 at real time 10:00:00 AM:
- *    Reference = 10:00:00 - 1638 seconds = 9:32:42 AM
- *
- * 4. Canonical Baseline: The first user to sync sets the room's baseline.
- *    All other users' offsets are calculated relative to this.
- *
  * 5. Offset: How many seconds behind the baseline a user is.
- *    - Positive offset = user is behind (they see plays later)
- *    - Zero offset = user is at the baseline (most "live")
+ *    This is SPORT-AGNOSTIC - once we have elapsed seconds, offset math is the same.
  */
 
-// Basketball: 4 quarters, 12 minutes each
-const QUARTER_DURATION_SECONDS = 12 * 60; // 720 seconds
-const TOTAL_QUARTERS = 4;
+const { getSportConfig, DEFAULT_SPORT } = require('./sportConfig');
 
 /**
  * Converts a game clock time to total elapsed seconds from game start.
  *
- * In basketball, the clock counts DOWN from 12:00 to 0:00 each quarter.
- * So "8:42 left in Q3" means 3 minutes 18 seconds have passed in Q3.
+ * For COUNTDOWN sports (basketball, football, hockey):
+ *   Clock shows time REMAINING, so elapsed = duration - remaining
+ *   Example: "8:42 left in Q3" = 3:18 elapsed in Q3
  *
- * @param {number} quarter - The current quarter (1-4)
- * @param {number} minutes - Minutes remaining on the clock (0-12)
- * @param {number} seconds - Seconds remaining on the clock (0-59)
+ * For COUNTUP sports (soccer):
+ *   Clock shows time ELAPSED directly
+ *   Example: "23:15 in 1st Half" = 23:15 elapsed in that half
+ *
+ * @param {number} period - The current period (1-based: Q1, P1, 1st Half, etc.)
+ * @param {number} minutes - Minutes on the clock
+ * @param {number} seconds - Seconds on the clock (0-59)
+ * @param {string} sportType - Sport identifier (default: 'basketball')
  * @returns {number} Total elapsed seconds since game start
  *
  * @example
- * // 8:42 left in Q3
- * gameTimeToElapsedSeconds(3, 8, 42)
+ * // Basketball: 8:42 left in Q3
+ * gameTimeToElapsedSeconds(3, 8, 42, 'basketball')
  * // Returns: 720 + 720 + 198 = 1638 seconds
+ *
+ * @example
+ * // Soccer: 23:15 into 1st Half
+ * gameTimeToElapsedSeconds(1, 23, 15, 'soccer')
+ * // Returns: 23*60 + 15 = 1395 seconds
  */
-function gameTimeToElapsedSeconds(quarter, minutes, seconds) {
-  // Validate inputs
-  if (quarter < 1 || quarter > TOTAL_QUARTERS) {
-    throw new Error(`Invalid quarter: ${quarter}. Must be 1-${TOTAL_QUARTERS}`);
-  }
-  if (minutes < 0 || minutes > 12) {
-    throw new Error(`Invalid minutes: ${minutes}. Must be 0-12`);
-  }
-  if (seconds < 0 || seconds > 59) {
-    throw new Error(`Invalid seconds: ${seconds}. Must be 0-59`);
+function gameTimeToElapsedSeconds(period, minutes, seconds, sportType = DEFAULT_SPORT) {
+  const config = getSportConfig(sportType);
+  const periodDurationSeconds = config.periodDurationMinutes * 60;
+
+  // Validate period
+  if (period < 1 || period > config.periods) {
+    throw new Error(
+      `Invalid ${config.periodLabel.toLowerCase()}: ${period}. Must be 1-${config.periods}`
+    );
   }
 
-  // Calculate seconds elapsed in completed quarters
-  const completedQuarters = quarter - 1;
-  const completedQuarterSeconds = completedQuarters * QUARTER_DURATION_SECONDS;
+  // Calculate seconds elapsed in completed periods
+  const completedPeriods = period - 1;
+  const completedPeriodSeconds = completedPeriods * periodDurationSeconds;
 
-  // Calculate seconds elapsed in current quarter
-  // Clock shows time REMAINING, so we subtract from quarter duration
-  const timeRemainingInQuarter = (minutes * 60) + seconds;
-  const elapsedInCurrentQuarter = QUARTER_DURATION_SECONDS - timeRemainingInQuarter;
+  // Calculate seconds elapsed in current period based on clock direction
+  let elapsedInCurrentPeriod;
 
-  return completedQuarterSeconds + elapsedInCurrentQuarter;
+  if (config.clockDirection === 'down') {
+    // COUNTDOWN: clock shows time REMAINING
+    // So elapsed = duration - remaining
+    const timeRemainingInPeriod = minutes * 60 + seconds;
+    elapsedInCurrentPeriod = periodDurationSeconds - timeRemainingInPeriod;
+  } else {
+    // COUNTUP: clock shows time ELAPSED directly
+    elapsedInCurrentPeriod = minutes * 60 + seconds;
+  }
+
+  return completedPeriodSeconds + elapsedInCurrentPeriod;
 }
 
 /**
@@ -77,37 +87,117 @@ function gameTimeToElapsedSeconds(quarter, minutes, seconds) {
  * Useful for debugging and displaying to users.
  *
  * @param {number} elapsedSeconds - Total seconds since game start
- * @returns {object} { quarter, minutes, seconds, display }
+ * @param {string} sportType - Sport identifier (default: 'basketball')
+ * @returns {object} { period, minutes, seconds, display }
  *
  * @example
- * elapsedSecondsToGameTime(1638)
- * // Returns: { quarter: 3, minutes: 8, seconds: 42, display: "Q3 8:42" }
+ * // Basketball
+ * elapsedSecondsToGameTime(1638, 'basketball')
+ * // Returns: { period: 3, minutes: 8, seconds: 42, display: "Q3 8:42" }
+ *
+ * @example
+ * // Soccer
+ * elapsedSecondsToGameTime(1395, 'soccer')
+ * // Returns: { period: 1, minutes: 23, seconds: 15, display: "1st Half 23:15" }
  */
-function elapsedSecondsToGameTime(elapsedSeconds) {
+function elapsedSecondsToGameTime(elapsedSeconds, sportType = DEFAULT_SPORT) {
+  const config = getSportConfig(sportType);
+  const periodDurationSeconds = config.periodDurationMinutes * 60;
+
   // Clamp to valid range
-  const maxElapsed = TOTAL_QUARTERS * QUARTER_DURATION_SECONDS;
+  const maxElapsed = config.periods * periodDurationSeconds;
   elapsedSeconds = Math.max(0, Math.min(elapsedSeconds, maxElapsed));
 
-  // Determine which quarter we're in
-  const quarter = Math.min(
-    Math.floor(elapsedSeconds / QUARTER_DURATION_SECONDS) + 1,
-    TOTAL_QUARTERS
+  // Determine which period we're in
+  const period = Math.min(
+    Math.floor(elapsedSeconds / periodDurationSeconds) + 1,
+    config.periods
   );
 
-  // Calculate how much time has elapsed in this quarter
-  const completedQuarterSeconds = (quarter - 1) * QUARTER_DURATION_SECONDS;
-  const elapsedInQuarter = elapsedSeconds - completedQuarterSeconds;
+  // Calculate how much time has elapsed in this period
+  const completedPeriodSeconds = (period - 1) * periodDurationSeconds;
+  const elapsedInPeriod = elapsedSeconds - completedPeriodSeconds;
 
-  // Convert to time remaining (clock counts down)
-  const timeRemaining = QUARTER_DURATION_SECONDS - elapsedInQuarter;
-  const minutes = Math.floor(timeRemaining / 60);
-  const seconds = timeRemaining % 60;
+  let minutes, seconds, display;
 
-  // Format display string
-  const display = `Q${quarter} ${minutes}:${seconds.toString().padStart(2, '0')}`;
+  if (config.clockDirection === 'down') {
+    // COUNTDOWN: show time remaining
+    const timeRemaining = periodDurationSeconds - elapsedInPeriod;
+    minutes = Math.floor(timeRemaining / 60);
+    seconds = timeRemaining % 60;
+    display = `${config.periodLabelShort}${period} ${minutes}:${seconds.toString().padStart(2, '0')}`;
+  } else {
+    // COUNTUP: show time elapsed
+    minutes = Math.floor(elapsedInPeriod / 60);
+    seconds = elapsedInPeriod % 60;
+    // For soccer: "1st Half 23:15" or "2nd Half 23:15"
+    const ordinal = period === 1 ? '1st' : '2nd';
+    display = `${ordinal} ${config.periodLabel} ${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
 
-  return { quarter, minutes, seconds, display };
+  return { period, minutes, seconds, display };
 }
+
+/**
+ * Validates game time input values for a specific sport.
+ *
+ * @param {number} period - Period number (1-based)
+ * @param {number} minutes - Minutes on clock
+ * @param {number} seconds - Seconds on clock
+ * @param {string} sportType - Sport identifier (default: 'basketball')
+ * @returns {object} { valid: boolean, error?: string }
+ */
+function validateGameTime(period, minutes, seconds, sportType = DEFAULT_SPORT) {
+  const config = getSportConfig(sportType);
+
+  if (typeof period !== 'number' || period < 1 || period > config.periods) {
+    return {
+      valid: false,
+      error: `${config.periodLabel} must be 1-${config.periods}`,
+    };
+  }
+
+  if (typeof minutes !== 'number' || minutes < 0) {
+    return { valid: false, error: 'Minutes must be 0 or greater' };
+  }
+
+  if (typeof seconds !== 'number' || seconds < 0 || seconds > 59) {
+    return { valid: false, error: 'Seconds must be 0-59' };
+  }
+
+  // Sport-specific minute validation based on clock direction
+  if (config.clockDirection === 'down') {
+    // COUNTDOWN sports: max minutes is the period duration
+    if (minutes > config.periodDurationMinutes) {
+      return {
+        valid: false,
+        error: `Minutes must be 0-${config.periodDurationMinutes}`,
+      };
+    }
+    // Special case: full duration only valid with 0 seconds
+    if (minutes === config.periodDurationMinutes && seconds > 0) {
+      return {
+        valid: false,
+        error: `Time cannot exceed ${config.periodDurationMinutes}:00`,
+      };
+    }
+  } else {
+    // COUNTUP sports (soccer): allow up to maxMinutes for stoppage time
+    if (minutes > config.maxMinutes) {
+      return {
+        valid: false,
+        error: `Minutes must be 0-${config.maxMinutes}`,
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
+// ============================================
+// SPORT-AGNOSTIC FUNCTIONS (unchanged from Phase 7)
+// These work with elapsed seconds, so they don't need sport knowledge
+// ============================================
 
 /**
  * Calculates a user's reference point (when the game "started" for them).
@@ -125,7 +215,7 @@ function elapsedSecondsToGameTime(elapsedSeconds) {
  * // Returns: 1000000000000 - (1638 * 1000) = 998362000000
  */
 function calculateReferencePoint(realTimeMs, elapsedGameSeconds) {
-  return realTimeMs - (elapsedGameSeconds * 1000);
+  return realTimeMs - elapsedGameSeconds * 1000;
 }
 
 /**
@@ -181,38 +271,11 @@ function formatOffset(offsetMs) {
   return `${minutes}m ${seconds}s behind`;
 }
 
-/**
- * Validates game time input values.
- *
- * @param {number} quarter - Quarter number (1-4)
- * @param {number} minutes - Minutes (0-12)
- * @param {number} seconds - Seconds (0-59)
- * @returns {object} { valid: boolean, error?: string }
- */
-function validateGameTime(quarter, minutes, seconds) {
-  if (typeof quarter !== 'number' || quarter < 1 || quarter > TOTAL_QUARTERS) {
-    return { valid: false, error: `Quarter must be 1-${TOTAL_QUARTERS}` };
-  }
-  if (typeof minutes !== 'number' || minutes < 0 || minutes > 12) {
-    return { valid: false, error: 'Minutes must be 0-12' };
-  }
-  if (typeof seconds !== 'number' || seconds < 0 || seconds > 59) {
-    return { valid: false, error: 'Seconds must be 0-59' };
-  }
-  // Special case: 12:00 is only valid at quarter start
-  if (minutes === 12 && seconds > 0) {
-    return { valid: false, error: 'Minutes cannot exceed 12:00' };
-  }
-  return { valid: true };
-}
-
 module.exports = {
-  QUARTER_DURATION_SECONDS,
-  TOTAL_QUARTERS,
   gameTimeToElapsedSeconds,
   elapsedSecondsToGameTime,
   calculateReferencePoint,
   calculateOffset,
   formatOffset,
-  validateGameTime
+  validateGameTime,
 };
