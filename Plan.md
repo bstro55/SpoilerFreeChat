@@ -393,10 +393,14 @@ After each phase, verify:
 
 **Deliverable:** Data persists across refreshes and server restarts ✅
 
-### Phase 7: Authentication
-- Add Supabase Auth
-- Optional user accounts
-- Persistent nicknames and preferences
+### Phase 7: Authentication ✅ COMPLETE
+- ✅ Add Supabase Auth (Google OAuth)
+- ✅ Optional user accounts (guests still supported)
+- ✅ Persistent nicknames and preferences
+- ✅ Recent rooms for quick rejoin
+- ✅ Session linking to authenticated users
+
+**Deliverable:** Users can sign in with Google, save preferences, and quickly rejoin recent rooms ✅
 
 ### Phase 8: Multi-Sport Support
 - Sport selector on room creation
