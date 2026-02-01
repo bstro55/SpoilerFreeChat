@@ -15,10 +15,15 @@ import { LogIn, LogOut, Settings, User } from 'lucide-react';
 function AuthButton() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPrefsModal, setShowPrefsModal] = useState(false);
-  const { session, signOut, isLoading } = useAuthStore();
+  const { session, signOut, isLoading, isAuthAvailable } = useAuthStore();
 
   // Don't show anything while loading initial auth state
   if (isLoading) {
+    return null;
+  }
+
+  // Don't show sign-in button if Supabase isn't configured
+  if (!isAuthAvailable()) {
     return null;
   }
 

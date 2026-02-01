@@ -10,13 +10,16 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Validate environment variables
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error(
-    'Missing Supabase environment variables. Make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your .env file.'
+// Create and export the Supabase client
+// Returns null if environment variables are missing (auth becomes unavailable)
+// This allows the app to work in guest-only mode without Supabase configured
+export const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
+
+if (!supabase) {
+  console.warn(
+    'Supabase not configured. Authentication features disabled. To enable, set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
   );
 }
-
-// Create and export the Supabase client
-// This is the main entry point for all Supabase operations
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);

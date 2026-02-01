@@ -32,8 +32,15 @@ const useAuthStore = create((set, get) => ({
   /**
    * Initialize auth state on app mount
    * Checks if user is already logged in and sets up auth listener
+   * If Supabase is not configured, auth features are disabled (guest-only mode)
    */
   initialize: async () => {
+    // If Supabase is not configured, skip auth initialization
+    if (!supabase) {
+      set({ isLoading: false });
+      return () => {}; // Return no-op cleanup function
+    }
+
     try {
       // Check for existing session
       const {
@@ -150,6 +157,11 @@ const useAuthStore = create((set, get) => ({
    * Sign out the current user
    */
   signOut: async () => {
+    if (!supabase) {
+      set({ session: null, profile: null });
+      return;
+    }
+
     try {
       await supabase.auth.signOut();
       set({ session: null, profile: null });
@@ -158,6 +170,11 @@ const useAuthStore = create((set, get) => ({
       set({ error: error.message });
     }
   },
+
+  /**
+   * Helper: Check if authentication is available (Supabase configured)
+   */
+  isAuthAvailable: () => !!supabase,
 
   /**
    * Helper: Check if user is authenticated
