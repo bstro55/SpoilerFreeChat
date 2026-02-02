@@ -54,12 +54,13 @@ function AuthButton() {
         </Button>
         <Button
           variant="ghost"
-          size="icon"
+          size="sm"
           onClick={signOut}
           title="Sign Out"
-          className="h-8 w-8"
+          className="gap-1.5"
         >
           <LogOut className="h-4 w-4" />
+          <span className="hidden sm:inline">Sign Out</span>
         </Button>
         <PreferencesModal
           isOpen={showPrefsModal}
