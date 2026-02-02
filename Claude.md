@@ -80,46 +80,33 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
 - **Next**: Phase 9 (UI Polish & Theming)
 
-## ⚠️ NEXT SESSION: Testing Required
+## ✅ Phase 7 & 8 Testing Complete (2026-02-02)
 
-**Session 2026-02-01 Fixes Applied:**
-- Fixed white screen crash when Supabase env vars missing (graceful fallback to guest-only mode)
-- Fixed AuthModal crash on React 19 (replaced @supabase/auth-ui-react with custom OAuth button)
-- Added Magic Link sign-in option alongside Google OAuth
-- Fixed Prisma + PgBouncer "prepared statement already exists" error (added `?pgbouncer=true` to DATABASE_URL)
-- Added missing Vercel environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SOCKET_URL`
+**Session 2026-02-02 Fixes Applied:**
+- Fixed auto-reconnect on page refresh (was storing session but not using it)
+- Fixed flash of JoinRoom screen during reconnect (shows "Reconnecting..." instead)
+- Added AuthButton to ChatRoom header (sign out now accessible from room)
+- Added sport emoji indicator to room header
+- Fixed CORS to allow PATCH method (preferences weren't saving)
+- Added SUPABASE_URL to Koyeb environment (JWT verification was failing)
+- Fixed socket auth timing (socket reconnects when user signs in so token is sent)
+- Made sign out button more visible with text label
 
-**Verified Working (2026-02-01):**
-- [x] Room joining works on production
-- [x] Sending messages works
-- [x] Google OAuth sign-in modal opens
-- [x] Magic Link option visible in sign-in modal
-- [x] Sport selector UI displays all 4 sports with emojis
-- [x] Guest users can join rooms without signing in
+**All Phase 7 & 8 Features Verified Working:**
+- [x] Google OAuth sign in/out
+- [x] Preferences save and persist (nickname, theme, notifications)
+- [x] Recent rooms list shows after joining rooms
+- [x] Quick rejoin from recent rooms
+- [x] Page refresh keeps you in room (auto-reconnect)
+- [x] Sport selection and inheritance (first joiner sets sport)
+- [x] Sport emoji in room header
+- [x] All sport timing formats work correctly
+- [x] Message delays work across all sports
+- [x] Reconnection restores sport type and sync state
+- [x] Recent rooms show sport emoji
 
-**Still Needs Testing:**
-
-### Phase 7 (Authentication)
-- [ ] Complete Google OAuth flow (click sign in → complete OAuth → verify session persists)
-- [ ] Sign out functionality
-- [ ] Preferred nickname saves and loads correctly
-- [ ] Theme preference persists across sessions
-- [ ] Notification sound preference persists
-- [ ] Recent rooms list populates after joining rooms (requires sign-in)
-- [ ] Quick rejoin from recent rooms works
+**Not Yet Tested (Optional):**
 - [ ] Magic Link email delivery and sign-in flow
-
-### Phase 8 (Multi-Sport Support)
-- [ ] First joiner sets room's sport type
-- [ ] Second joiner inherits room's sport (not their selection)
-- [ ] Basketball: 4 quarters, 12-minute clock countdown
-- [ ] Football: 4 quarters, 15-minute clock countdown
-- [ ] Hockey: 3 periods, 20-minute clock countdown
-- [ ] Soccer: 2 halves, clock counts UP (stoppage time support)
-- [ ] TimeSync component shows correct period labels per sport
-- [ ] Message delays work correctly across all sports
-- [ ] Recent rooms show sport emoji (requires sign-in)
-- [ ] Reconnection restores sport type and sync state
 
 ## Decisions Made
 
