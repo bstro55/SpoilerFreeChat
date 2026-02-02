@@ -72,6 +72,7 @@ function clearStoredSession() {
 
 export function useSocket() {
   const socketRef = useRef(null);
+  const lastTokenRef = useRef(null); // Track the last token used for connection
 
   // Get store actions
   const {
@@ -92,10 +93,31 @@ export function useSocket() {
     updateUserSync
   } = useChatStore();
 
+  // Subscribe to auth state changes and reconnect socket when token changes
+  // This ensures authenticated users get their token sent to the server
+  useEffect(() => {
+    const unsubscribe = useAuthStore.subscribe((state, prevState) => {
+      const newToken = state.session?.access_token;
+      const oldToken = prevState.session?.access_token;
+
+      // If token changed (e.g., user signed in or out), reconnect with new token
+      if (newToken !== oldToken && socketRef.current) {
+        console.log('Auth state changed, reconnecting socket with new token');
+        lastTokenRef.current = newToken;
+        socketRef.current.auth = { token: newToken };
+        socketRef.current.disconnect();
+        socketRef.current.connect();
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // Initialize socket connection
   useEffect(() => {
     // Get auth token if user is logged in (optional - guests won't have one)
     const token = useAuthStore.getState().getAccessToken();
+    lastTokenRef.current = token;
 
     // Create socket connection with optional auth token
     socketRef.current = io(SOCKET_URL, {
