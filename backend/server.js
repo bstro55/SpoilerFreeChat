@@ -26,7 +26,11 @@ app.set('trust proxy', 1);
 
 // Get configuration from environment variables
 const PORT = process.env.PORT || 3001;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
+// Support multiple CORS origins for local development (Vite may use different ports)
+// Environment variable can be comma-separated list: "http://localhost:5173,http://localhost:5174"
+const CORS_ORIGIN = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+  : ['http://localhost:5173', 'http://localhost:5174'];
 
 // Apply security middleware
 app.use(helmet());

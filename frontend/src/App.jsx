@@ -41,7 +41,7 @@ function App() {
   // Show loading while checking auth state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-muted-foreground">Loading...</div>
       </div>
     );
@@ -50,7 +50,7 @@ function App() {
   // Show reconnecting state while auto-reconnecting to stored session
   if (pendingAutoReconnect && !roomId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-muted-foreground">Reconnecting to room...</div>
       </div>
     );

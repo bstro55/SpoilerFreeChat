@@ -66,7 +66,7 @@ function JoinRoom({ onJoin }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -103,7 +103,7 @@ function JoinRoom({ onJoin }) {
                 placeholder="Leave empty for demo room"
                 maxLength={50}
               />
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-muted-foreground">
                 Leave empty to join the demo room
               </p>
             </div>
@@ -125,7 +125,7 @@ function JoinRoom({ onJoin }) {
                   </Button>
                 ))}
               </div>
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-muted-foreground">
                 First person to join sets the sport for the room
               </p>
             </div>

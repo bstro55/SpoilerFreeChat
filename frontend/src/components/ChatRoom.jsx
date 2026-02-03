@@ -110,7 +110,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-zinc-50">
+    <div className="h-screen flex flex-col bg-background">
       {/* Connection Status Banner */}
       {(!isConnected || isReconnecting || connectionError) && (
         <div className={`px-4 py-2 text-center text-sm ${
@@ -125,12 +125,12 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
       )}
 
       {/* Header */}
-      <header className="border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-3">
+      <header className="border-b border-border bg-card px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="text-xl" title={sportConfig.label}>{sportConfig.emoji}</span>
-              <h2 className="text-lg font-semibold dark:text-zinc-100">Room: {roomId}</h2>
+              <h2 className="text-lg font-semibold text-foreground">Room: {roomId}</h2>
             </div>
             <Badge variant="secondary">
               {users.length} user{users.length !== 1 ? 's' : ''}
@@ -140,8 +140,8 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
             {isSynced && (
               <Badge variant="outline">{offsetFormatted}</Badge>
             )}
-            <span className="text-sm text-zinc-500 dark:text-zinc-400">
-              Chatting as: <strong className="text-zinc-950 dark:text-zinc-100">{nickname}</strong>
+            <span className="text-sm text-muted-foreground">
+              Chatting as: <strong className="text-foreground">{nickname}</strong>
             </span>
             <AuthButton />
             <Button variant="outline" size="sm" onClick={onLeaveRoom}>
@@ -153,7 +153,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-72 border-r border-zinc-200 bg-zinc-100 flex flex-col overflow-hidden">
+        <aside className="w-72 border-r border-border bg-muted flex flex-col overflow-hidden">
           <div className="p-4 flex-1 overflow-y-auto space-y-4">
             <TimeSync onSync={onSyncGameTime} />
 
@@ -173,7 +173,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
                       <span>
                         {user.nickname}
                         {user.nickname === nickname && (
-                          <span className="text-zinc-500"> (you)</span>
+                          <span className="text-muted-foreground"> (you)</span>
                         )}
                       </span>
                       <Badge
@@ -195,7 +195,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-3">
               {messages.length === 0 ? (
-                <div className="text-center py-12 text-zinc-500">
+                <div className="text-center py-12 text-muted-foreground">
                   <p>No messages yet. Say hello!</p>
                   {!isSynced && (
                     <p className="mt-2 text-sm">
@@ -212,18 +212,18 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
                     }`}
                   >
                     <div
-                      className={`rounded-lg px-3 py-2 ${
+                      className={`rounded-lg px-3 py-2 shadow-sm ${
                         message.nickname === nickname
-                          ? 'bg-zinc-900 text-white'
-                          : 'bg-zinc-200 text-zinc-950'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-foreground'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-4 mb-1">
                         <span className="font-medium text-sm">{message.nickname}</span>
                         <span className={`text-xs ${
                           message.nickname === nickname
-                            ? 'text-white/70'
-                            : 'text-zinc-500'
+                            ? 'text-primary-foreground/70'
+                            : 'text-muted-foreground'
                         }`}>
                           {formatTime(message.timestamp)}
                         </span>
@@ -302,7 +302,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
                 ? inputValue.length >= 500
                   ? 'text-red-500'
                   : 'text-yellow-600'
-                : 'text-zinc-500'
+                : 'text-muted-foreground'
             }`}>
               {inputValue.length}/500
             </div>

@@ -159,7 +159,7 @@ function TimeSync({ onSync }) {
           </div>
 
           {/* Clock direction hint */}
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-muted-foreground">
             {config.clockDirection === 'down'
               ? 'Enter time remaining (clock counts down)'
               : 'Enter elapsed time (clock counts up)'}
@@ -173,11 +173,11 @@ function TimeSync({ onSync }) {
         {isSynced && (
           <div className="space-y-1 pt-2 border-t text-sm">
             <div className="flex justify-between">
-              <span className="text-zinc-500">Game time:</span>
+              <span className="text-muted-foreground">Game time:</span>
               <span className="font-medium">{displayGameTime}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-zinc-500">Your delay:</span>
+              <span className="text-muted-foreground">Your delay:</span>
               <Badge variant={isBaseline ? 'default' : 'secondary'}>
                 {offsetFormatted}
                 {isBaseline && ' (Baseline)'}
@@ -187,7 +187,7 @@ function TimeSync({ onSync }) {
         )}
 
         {!isSynced && (
-          <p className="text-xs text-zinc-500 text-center pt-2">
+          <p className="text-xs text-muted-foreground text-center pt-2">
             Sync to enable spoiler-free chat
           </p>
         )}
