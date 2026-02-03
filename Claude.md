@@ -63,7 +63,7 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## Current State
 
-- **Phase**: Phase 8 Complete (Multi-Sport Support) 🚀
+- **Phase**: Phase 9 Complete (UI Polish & Theming) 🎨
 - **Tech stack**: React + Vite + Tailwind + Shadcn/UI (frontend), Node.js + Express + Socket.IO + Prisma (backend)
 - **Database**: Supabase PostgreSQL for persistence
 - **Authentication**: Google OAuth via Supabase Auth (optional - guests still supported)
@@ -73,12 +73,52 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - **Reconnection**: Users can refresh the page and resume their session with game time restored
 - **User preferences**: Authenticated users can save nickname, theme, notification settings
 - **Recent rooms**: Quick rejoin feature with sport type display
-- **UI**: Fully styled with Shadcn/UI components
+- **UI**: Vibrant teal/cyan theme with proper light/dark mode support
 - **Security**: Rate limiting, input validation, XSS prevention, JWT verification
 - **Live URLs**:
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
-- **Next**: Phase 9 (UI Polish & Theming)
+- **Next**: Phase 10 (TBD - see UX Improvements section for ideas)
+
+## ✅ Phase 9 Complete (UI Polish & Theming) - 2026-02-02
+
+**Design Direction:**
+- Bold & Vibrant style (inspired by Discord, Vercel, Supabase)
+- Teal/Cyan accent color
+- Dark mode uses comfortable dark gray (#1a1a1a), not near-black
+- Theme toggle available in Preferences (signed-in users only)
+
+**What Was Done:**
+- Updated CSS variables in `index.css` with teal accent color using OKLch color space
+- Refactored all 11 Shadcn UI components to use semantic classes (`bg-primary`, `text-foreground`, etc.)
+- Updated all custom components (App, JoinRoom, ChatRoom, TimeSync) to use theme variables
+- Message bubbles: own messages are teal, others are muted gray
+- All focus rings and interactive elements use teal accent
+- Backend now supports comma-separated CORS origins for flexible local dev
+
+**Files Modified:**
+- `frontend/src/index.css` - CSS variable definitions (foundation)
+- `frontend/src/components/ui/*.jsx` - All Shadcn components (button, badge, card, input, select, dialog, alert, separator, scroll-area)
+- `frontend/src/App.jsx` - Background color
+- `frontend/src/components/ChatRoom.jsx` - Header, sidebar, message bubbles
+- `frontend/src/components/JoinRoom.jsx` - Background and muted text
+- `frontend/src/components/TimeSync.jsx` - Muted text
+- `backend/server.js` - CORS parsing for comma-separated origins
+
+**Future Theme Flexibility:**
+To change the accent color, update these CSS variables in `index.css`:
+- `--primary`, `--accent`, `--ring` (in both `:root` and `.dark`)
+- The hue value in OKLch controls the color: 195=Teal, 270=Purple, 220=Blue, 30=Orange
+
+**Testing Status:**
+- [x] Dark mode displays correctly (teal accents on dark gray background)
+- [x] Light mode displays correctly (teal accents on white background)
+- [x] Buttons are teal with proper hover states
+- [x] Message bubbles differentiate own vs others
+- [x] Theme toggle works in Preferences modal
+- [ ] Full end-to-end testing with multiple users (pending)
+
+---
 
 ## ✅ Phase 7 & 8 Testing Complete (2026-02-02)
 
@@ -117,6 +157,8 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 | Authentication | Google OAuth via Supabase Auth (optional, guests supported) |
 | Deployment | Koyeb (backend) + Vercel (frontend) |
 | Sports support | Basketball, Football, Hockey, Soccer (Phase 8) |
+| UI Theme | Teal/Cyan accent, dark gray dark mode, semantic CSS variables (Phase 9) |
+| Theme access | Signed-in users only (stored in preferences) |
 
 ## Project Structure
 
@@ -216,13 +258,20 @@ Manual testing with multiple browser tabs:
 5. Send messages and verify delays match offsets
 6. Verify second joiner gets room's sport type (not their selection)
 
-## Future: Phase 9 (UI Polish & Theming)
+## Future: Phase 10+ Ideas
 
-- Custom accent colors beyond grayscale
-- Color scheme variations (blue, purple, etc.)
-- Refactor hardcoded `bg-zinc-*` classes to semantic theme variables
-- Visual refinements (gradients, shadows, polish)
-- Consistent styling across all components
+### Additional UI Polish
+- Subtle gradients on buttons or headers
+- More refined shadows and depth
+- Animated transitions between states
+- Mobile responsiveness improvements
+
+### Feature Ideas
+- Multiple theme options (not just light/dark, but different accent colors)
+- Sound notifications for new messages
+- Typing indicators
+- Read receipts
+- Message reactions/emoji
 
 ## Other Future Polish
 
