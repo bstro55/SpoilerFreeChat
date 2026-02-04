@@ -63,7 +63,7 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## Current State
 
-- **Phase**: Phase 9 Complete (UI Polish & Theming) 🎨
+- **Phase**: Phase 10 In Progress (UX Polish & Navigation) 🧭
 - **Tech stack**: React + Vite + Tailwind + Shadcn/UI (frontend), Node.js + Express + Socket.IO + Prisma (backend)
 - **Database**: Supabase PostgreSQL for persistence
 - **Authentication**: Google OAuth via Supabase Auth (optional - guests still supported)
@@ -74,11 +74,49 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - **User preferences**: Authenticated users can save nickname, theme, notification settings
 - **Recent rooms**: Quick rejoin feature with sport type display
 - **UI**: Vibrant teal/cyan theme with proper light/dark mode support
+- **Navigation**: Home button, Create vs Join room flows, shareable room codes
 - **Security**: Rate limiting, input validation, XSS prevention, JWT verification
 - **Live URLs**:
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
-- **Next**: Phase 10 (TBD - see UX Improvements section for ideas)
+
+## 🚧 Phase 10 In Progress (UX Polish & Navigation) - 2026-02-03
+
+**Goal:** Improve navigation and room creation flows to make the app feel more professional.
+
+**What Was Done:**
+- Added Home button to ChatRoom header (returns to JoinRoom without leaving room)
+- Added "Return to Room" notice when viewing home while still connected
+- Implemented Create vs Join room toggle in JoinRoom
+- Auto-generated shareable room codes (e.g., "GAME-X7K2")
+- Copy-to-clipboard functionality for room codes
+- Added "How it works" collapsible explainer
+- Added "Why sign in?" hint for guests
+- Created loading spinner component
+- Improved loading/reconnecting states with spinner
+
+**Files Modified:**
+- `frontend/src/store/chatStore.js` - Added viewingHome state
+- `frontend/src/components/Header.jsx` - New navigation header (breadcrumbs)
+- `frontend/src/components/JoinRoom.jsx` - Create/Join toggle, room codes, onboarding
+- `frontend/src/components/ChatRoom.jsx` - Home button in header
+- `frontend/src/components/ui/spinner.jsx` - New loading spinner
+- `frontend/src/App.jsx` - Navigation routing, improved loading states
+
+**Testing Checklist:**
+- [ ] Open app → see Create/Join toggle, Create mode by default
+- [ ] Create mode shows generated room code with copy button
+- [ ] Join mode shows room code input field
+- [ ] "How it works" expands/collapses
+- [ ] Sign-in hint shows for guests only
+- [ ] Create & Join creates room with generated code
+- [ ] In ChatRoom, Home button returns to JoinRoom
+- [ ] "Return to Room" notice shows with Return button
+- [ ] Leave Room still clears session properly
+- [ ] Page refresh reconnects smoothly with spinner
+- [ ] Recent rooms still work (quick rejoin)
+
+---
 
 ## ✅ Phase 9 Complete (UI Polish & Theming) - 2026-02-02
 
@@ -178,7 +216,8 @@ SpoilerFreeChat/
 │       ├── components/
 │       │   ├── ChatRoom.jsx
 │       │   ├── TimeSync.jsx
-│       │   ├── JoinRoom.jsx
+│       │   ├── JoinRoom.jsx        # Create/Join room flows (Phase 10)
+│       │   ├── Header.jsx          # Navigation header (Phase 10)
 │       │   ├── SyncModal.jsx
 │       │   ├── AuthButton.jsx      # Sign in/out button
 │       │   ├── AuthModal.jsx       # OAuth sign-in modal
@@ -194,7 +233,8 @@ SpoilerFreeChat/
 │       │       ├── label.jsx
 │       │       ├── separator.jsx
 │       │       ├── scroll-area.jsx
-│       │       └── switch.jsx
+│       │       ├── switch.jsx
+│       │       └── spinner.jsx     # Loading spinner (Phase 10)
 │       ├── hooks/
 │       │   └── useSocket.js
 │       ├── lib/
@@ -301,3 +341,51 @@ These improvements were identified during Phase 7/8 testing and should be addres
 - **Empty state for Recent Rooms**: Show "Join rooms to see them here" for signed-in users with no history
 - **Room persistence indicator**: Show users they're reconnected vs starting fresh
 - **Loading states**: Better feedback during reconnection attempts
+
+---
+
+## 🚀 Shippable v1 Checklist (For Future Reference)
+
+Before considering the app "shippable" for real users, address these items:
+
+### Critical (Must Fix)
+- [x] **Prisma/Supabase connection stability** - Fixed with pgbouncer flag and retry logic
+- [ ] **Reconnection robustness** - Don't get stuck on "Reconnecting..." forever; add timeout/fallback
+- [x] **Better error handling** - Added retry logic for transient database errors
+
+### Important (Should Fix)
+- [ ] **Mobile responsiveness** - Many users watch games on phones
+- [ ] **Google OAuth verification** - Remove "unverified app" warning (requires privacy policy + terms)
+
+### Operational (Need for Running a Business)
+- [ ] **Error tracking** - Set up Sentry or similar to catch production errors
+- [ ] **Monitoring** - Know when something breaks (uptime monitoring)
+- [ ] **Logging** - Structured logs for debugging production issues
+- [ ] **Operational playbook** - Document how to check logs, restart services, etc.
+- [ ] **Analytics** - Understand usage patterns (optional but helpful)
+
+### Legal (Required for OAuth/Business)
+- [ ] **Privacy Policy** - Required for Google OAuth verification
+- [ ] **Terms of Service** - Required for Google OAuth verification
+
+---
+
+## ✅ Fixed: Prisma/Supabase Connection Issues (2026-02-03)
+
+**Issue 1**: "prepared statement does not exist" errors
+**Fix**: Added `?pgbouncer=true` to DATABASE_URL to disable prepared statements
+
+**Issue 2**: "Error in PostgreSQL connection: Closed" errors
+**Fix**: Added connection pool settings and retry logic with exponential backoff
+
+**Files Changed**:
+- `backend/.env` - Added `?pgbouncer=true&connection_limit=1&pool_timeout=20`
+- `backend/.env.example` - Updated with correct format and documentation
+- `backend/services/database.js` - Added `withRetry()` helper for transient errors
+- `backend/services/sessionManager.js` - Wrapped cleanup operations with retry logic
+
+**IMPORTANT for Production (Koyeb)**:
+Update the DATABASE_URL environment variable to include pool settings:
+```
+postgresql://...@pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&pool_timeout=20
+```

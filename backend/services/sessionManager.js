@@ -16,6 +16,7 @@
  */
 
 const prisma = require('./database');
+const { withRetry } = require('./database');
 
 // How long a disconnected session remains valid for reconnection
 const RECONNECT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -76,27 +77,30 @@ async function getOrCreateSession(roomCode, nickname, existingSessionId = null, 
     return { session: existingByNickname, room, isReconnect: true };
   }
 
-  // No existing session found - create a new one
-  // First, mark any old sessions with this nickname as inactive
-  await prisma.session.updateMany({
+  // No existing active session found - upsert (update or create)
+  // This handles the unique constraint on (roomId, nickname) by reactivating
+  // any existing inactive session rather than trying to create a duplicate
+  const session = await prisma.session.upsert({
     where: {
-      roomId: room.id,
-      nickname: nickname
+      roomId_nickname: {
+        roomId: room.id,
+        nickname: nickname
+      }
     },
-    data: { isActive: false }
-  });
-
-  // Create the new session
-  const newSession = await prisma.session.create({
-    data: {
+    update: {
+      isActive: true,
+      lastSeenAt: new Date(),
+      currentSocketId: null // Will be set by connectSession
+    },
+    create: {
       roomId: room.id,
       nickname: nickname,
       isActive: true
     }
   });
 
-  console.log(`[Session] Created new session for ${nickname} in room ${roomCode}`);
-  return { session: newSession, room, isReconnect: false };
+  console.log(`[Session] Created/reactivated session for ${nickname} in room ${roomCode}`);
+  return { session, room, isReconnect: false };
 }
 
 /**
@@ -253,20 +257,26 @@ async function cleanupOldData(maxAgeDays = 7) {
 async function expireDisconnectedSessions() {
   const expireBefore = new Date(Date.now() - RECONNECT_WINDOW_MS);
 
-  const expired = await prisma.session.updateMany({
-    where: {
-      currentSocketId: null,  // Not connected
-      isActive: true,
-      lastSeenAt: { lt: expireBefore }
-    },
-    data: { isActive: false }
-  });
+  try {
+    const expired = await withRetry(() => prisma.session.updateMany({
+      where: {
+        currentSocketId: null,  // Not connected
+        isActive: true,
+        lastSeenAt: { lt: expireBefore }
+      },
+      data: { isActive: false }
+    }));
 
-  if (expired.count > 0) {
-    console.log(`[Session] Expired ${expired.count} disconnected sessions`);
+    if (expired.count > 0) {
+      console.log(`[Session] Expired ${expired.count} disconnected sessions`);
+    }
+
+    return expired.count;
+  } catch (error) {
+    // Log but don't crash - cleanup is non-critical
+    console.error('[Cleanup] Error expiring sessions (will retry next cycle):', error.message);
+    return 0;
   }
-
-  return expired.count;
 }
 
 module.exports = {

@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import useChatStore from './store/chatStore';
 import useAuthStore from './store/authStore';
 import useSocket from './hooks/useSocket';
+import Header from './components/Header';
 import JoinRoom from './components/JoinRoom';
 import ChatRoom from './components/ChatRoom';
+import { Spinner } from './components/ui/spinner';
 
 /**
  * Main App Component
@@ -13,7 +15,7 @@ import ChatRoom from './components/ChatRoom';
  */
 function App() {
   const { joinRoom, sendMessage, leaveRoom, syncGameTime } = useSocket();
-  const { roomId, pendingAutoReconnect } = useChatStore();
+  const { roomId, pendingAutoReconnect, viewingHome } = useChatStore();
   const { initialize, isLoading, profile } = useAuthStore();
 
   // Initialize auth on mount
@@ -41,8 +43,9 @@ function App() {
   // Show loading while checking auth state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-muted-foreground">Loading...</div>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-background">
+        <Spinner size="lg" />
+        <div className="text-muted-foreground text-sm">Loading...</div>
       </div>
     );
   }
@@ -50,20 +53,33 @@ function App() {
   // Show reconnecting state while auto-reconnecting to stored session
   if (pendingAutoReconnect && !roomId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-muted-foreground">Reconnecting to room...</div>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-background">
+        <Spinner size="lg" />
+        <div className="text-muted-foreground text-sm">Reconnecting to room...</div>
       </div>
     );
   }
 
-  return roomId ? (
-    <ChatRoom
-      onSendMessage={sendMessage}
-      onLeaveRoom={leaveRoom}
-      onSyncGameTime={syncGameTime}
-    />
-  ) : (
-    <JoinRoom onJoin={joinRoom} />
+  // Determine which view to show:
+  // - No room: JoinRoom (no header needed)
+  // - In room + viewingHome: Header + JoinRoom (with "Return to Room" option)
+  // - In room + not viewingHome: ChatRoom (has its own header with Home button)
+  const showJoinRoom = !roomId || viewingHome;
+  const showHeader = roomId && viewingHome; // Only show header when viewing home while in room
+
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      {showHeader && <Header />}
+      {showJoinRoom ? (
+        <JoinRoom onJoin={joinRoom} />
+      ) : (
+        <ChatRoom
+          onSendMessage={sendMessage}
+          onLeaveRoom={leaveRoom}
+          onSyncGameTime={syncGameTime}
+        />
+      )}
+    </div>
   );
 }
 

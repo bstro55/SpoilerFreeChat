@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Home } from 'lucide-react';
 import { getSportConfig } from '../lib/sportConfig';
 
 /**
@@ -41,7 +42,8 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
     isConnected,
     isReconnecting,
     connectionError,
-    sportType
+    sportType,
+    setViewingHome
   } = useChatStore();
 
   // Get sport config for display
@@ -110,7 +112,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="flex-1 flex flex-col bg-background overflow-hidden">
       {/* Connection Status Banner */}
       {(!isConnected || isReconnecting || connectionError) && (
         <div className={`px-4 py-2 text-center text-sm ${
@@ -128,6 +130,16 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
       <header className="border-b border-border bg-card px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {/* Home button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => setViewingHome(true)}
+              title="Go to Home"
+            >
+              <Home className="h-4 w-4" />
+            </Button>
             <div className="flex items-center gap-2">
               <span className="text-xl" title={sportConfig.label}>{sportConfig.emoji}</span>
               <h2 className="text-lg font-semibold text-foreground">Room: {roomId}</h2>

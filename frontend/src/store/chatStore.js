@@ -2,16 +2,38 @@ import { create } from 'zustand';
 
 // Check if there's a stored session on initial load (before React renders)
 const SESSION_STORAGE_KEY = 'spoilerfree_session';
-function hasStoredSession() {
+
+/**
+ * Check if we should show the "Reconnecting..." screen
+ * Returns true only if there's a stored session AND user wasn't viewing home
+ */
+function shouldShowReconnecting() {
   try {
     const stored = localStorage.getItem(SESSION_STORAGE_KEY);
     if (stored) {
       const session = JSON.parse(stored);
-      return !!(session && session.sessionId);
+      // Only show reconnecting if we have a session AND user wasn't on home screen
+      return !!(session && session.sessionId && !session.viewingHome);
     }
     return false;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Update just the viewingHome flag in stored session
+ */
+function updateStoredViewingHome(viewingHome) {
+  try {
+    const stored = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (stored) {
+      const session = JSON.parse(stored);
+      session.viewingHome = viewingHome;
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    }
+  } catch (e) {
+    console.error('Error updating viewingHome in localStorage:', e);
   }
 }
 
@@ -47,7 +69,7 @@ const useChatStore = create((set) => ({
   isConnected: false,
   isReconnecting: false,
   connectionError: null,
-  pendingAutoReconnect: hasStoredSession(), // True if we have a stored session to reconnect to
+  pendingAutoReconnect: shouldShowReconnecting(), // True only if stored session AND not viewing home
   setConnected: (connected) => set({
     isConnected: connected,
     isReconnecting: false,
@@ -64,7 +86,7 @@ const useChatStore = create((set) => ({
   sportType: null,  // Sport type for the room (Phase 8)
   sportConfig: null, // Sport-specific config from server (Phase 8)
   setRoom: (roomId, nickname, sessionId = null, sportType = null, sportConfig = null) =>
-    set({ roomId, nickname, sessionId, sportType, sportConfig }),
+    set({ roomId, nickname, sessionId, sportType, sportConfig, viewingHome: false }),
   clearRoom: () => set({
     roomId: null,
     nickname: null,
@@ -79,8 +101,19 @@ const useChatStore = create((set) => ({
     offset: 0,
     offsetFormatted: 'Not synced',
     isBaseline: false,
-    lastSyncTime: null
+    lastSyncTime: null,
+    viewingHome: false
   }),
+
+  // Navigation state (Phase 10)
+  // When true, shows JoinRoom view even while connected to a room
+  // This allows users to go "home" without leaving their room
+  viewingHome: false,
+  setViewingHome: (viewing) => {
+    // Persist to localStorage so it survives page refresh
+    updateStoredViewingHome(viewing);
+    set({ viewingHome: viewing });
+  },
 
   // Users in the room
   users: [],

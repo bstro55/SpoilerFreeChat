@@ -45,14 +45,16 @@ function getStoredSession() {
  * @param {string} nickname
  * @param {string} sessionId
  * @param {string} sportType - Sport type for the room (Phase 8)
+ * @param {boolean} viewingHome - Whether user was viewing home screen (Phase 10)
  */
-function storeSession(roomId, nickname, sessionId, sportType = null) {
+function storeSession(roomId, nickname, sessionId, sportType = null, viewingHome = false) {
   try {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
       roomId,
       nickname,
       sessionId,
-      sportType
+      sportType,
+      viewingHome
     }));
   } catch (e) {
     console.error('Error storing session in localStorage:', e);
@@ -143,13 +145,21 @@ export function useSocket() {
       // Auto-reconnect: Check for stored session and rejoin automatically
       const storedSession = getStoredSession();
       if (storedSession && storedSession.sessionId) {
-        console.log('Found stored session, auto-reconnecting to room:', storedSession.roomId);
-        setPendingAutoReconnect(true);
+        // If user was viewing home when they refreshed, don't show "Reconnecting..." spinner
+        // Just reconnect in background and show home screen
+        if (storedSession.viewingHome) {
+          console.log('Found stored session with viewingHome=true, reconnecting in background');
+          setPendingAutoReconnect(false); // Don't show spinner
+        } else {
+          console.log('Found stored session, auto-reconnecting to room:', storedSession.roomId);
+          setPendingAutoReconnect(true);
+        }
         socket.emit('join-room', {
           roomId: storedSession.roomId,
           nickname: storedSession.nickname,
           sessionId: storedSession.sessionId,
-          sportType: storedSession.sportType || 'basketball'
+          sportType: storedSession.sportType || 'basketball',
+          viewingHome: storedSession.viewingHome || false
         });
       }
     });
@@ -192,13 +202,23 @@ export function useSocket() {
     socket.on('joined-room', (data) => {
       console.log('Joined room:', data);
 
-      // Store session in localStorage for future reconnection (include sportType)
+      // Check if we need to preserve viewingHome state from stored session
+      const storedSession = getStoredSession();
+      const shouldViewHome = data.isReconnect && storedSession?.viewingHome;
+
+      // Store session in localStorage for future reconnection (include sportType and viewingHome)
       if (data.sessionId) {
-        storeSession(data.roomId, data.nickname, data.sessionId, data.sportType);
+        storeSession(data.roomId, data.nickname, data.sessionId, data.sportType, shouldViewHome);
       }
 
       // Update store with room info (including sessionId and sport info)
       setRoom(data.roomId, data.nickname, data.sessionId, data.sportType, data.sportConfig);
+
+      // If user was viewing home when they refreshed, keep them on home screen
+      if (shouldViewHome) {
+        useChatStore.getState().setViewingHome(true);
+      }
+
       setPendingAutoReconnect(false); // Clear pending state now that we've joined
       setUsers(data.users);
       setMessages(data.messages || []);
