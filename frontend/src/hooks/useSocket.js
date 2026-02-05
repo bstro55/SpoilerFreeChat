@@ -72,9 +72,13 @@ function clearStoredSession() {
   }
 }
 
+// Timeout for auto-reconnection (10 seconds)
+const RECONNECT_TIMEOUT_MS = 10000;
+
 export function useSocket() {
   const socketRef = useRef(null);
   const lastTokenRef = useRef(null); // Track the last token used for connection
+  const reconnectTimeoutRef = useRef(null); // Track reconnect timeout
 
   // Get store actions
   const {
@@ -153,6 +157,14 @@ export function useSocket() {
         } else {
           console.log('Found stored session, auto-reconnecting to room:', storedSession.roomId);
           setPendingAutoReconnect(true);
+
+          // Set timeout for reconnection - if it takes too long, fall back to JoinRoom
+          reconnectTimeoutRef.current = setTimeout(() => {
+            console.log('Auto-reconnect timed out after', RECONNECT_TIMEOUT_MS, 'ms');
+            setPendingAutoReconnect(false);
+            clearStoredSession();
+            setError('Reconnection timed out. Please join the room again.');
+          }, RECONNECT_TIMEOUT_MS);
         }
         socket.emit('join-room', {
           roomId: storedSession.roomId,
@@ -201,6 +213,12 @@ export function useSocket() {
     // Room events
     socket.on('joined-room', (data) => {
       console.log('Joined room:', data);
+
+      // Clear reconnect timeout since we successfully joined
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
 
       // Check if we need to preserve viewingHome state from stored session
       const storedSession = getStoredSession();
@@ -302,6 +320,11 @@ export function useSocket() {
     // Session expired event
     socket.on('session-expired', (data) => {
       console.log('Session expired:', data.message);
+      // Clear reconnect timeout
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
       clearStoredSession();
       setPendingAutoReconnect(false);
       setError(data.message);
@@ -310,12 +333,22 @@ export function useSocket() {
     // Error events
     socket.on('error', (data) => {
       console.error('Server error:', data);
+      // Clear reconnect timeout
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
       setPendingAutoReconnect(false);
       setError(data.message);
     });
 
     // Cleanup on unmount
     return () => {
+      // Clear reconnect timeout if pending
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
       socket.disconnect();
     };
   }, [setConnected, setReconnecting, setConnectionError, setPendingAutoReconnect, setRoom, clearRoom, setUsers, addUser, removeUser, setMessages, addMessage, setError, setSyncState, updateUserSync]);
