@@ -43,7 +43,10 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
     isReconnecting,
     connectionError,
     sportType,
-    setViewingHome
+    setViewingHome,
+    // Room metadata (Phase 11)
+    roomName,
+    teams
   } = useChatStore();
 
   // Get sport config for display
@@ -142,7 +145,14 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
             </Button>
             <div className="flex items-center gap-2">
               <span className="text-xl" title={sportConfig.label}>{sportConfig.emoji}</span>
-              <h2 className="text-lg font-semibold text-foreground">Room: {roomId}</h2>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground leading-tight">
+                  {roomName || `Room: ${roomId}`}
+                </h2>
+                {teams && (
+                  <p className="text-sm text-muted-foreground">{teams}</p>
+                )}
+              </div>
             </div>
             <Badge variant="secondary">
               {users.length} user{users.length !== 1 ? 's' : ''}

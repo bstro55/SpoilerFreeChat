@@ -189,6 +189,88 @@ function validateSportType(sportType) {
 }
 
 /**
+ * Validate room name (optional display name for the room)
+ *
+ * @param {string|null|undefined} roomName - Room display name
+ * @returns {Object} { valid: boolean, sanitized?: string|null, error?: string }
+ */
+function validateRoomName(roomName) {
+  // Optional field - null/undefined is valid
+  if (roomName === null || roomName === undefined || roomName === '') {
+    return { valid: true, sanitized: null };
+  }
+
+  if (typeof roomName !== 'string') {
+    return { valid: false, error: 'Room name must be a string' };
+  }
+
+  const trimmed = roomName.trim();
+
+  if (trimmed.length > 100) {
+    return { valid: false, error: 'Room name must be 100 characters or less' };
+  }
+
+  // Escape HTML entities
+  const sanitized = validator.escape(trimmed);
+
+  return { valid: true, sanitized };
+}
+
+/**
+ * Validate teams field (optional)
+ *
+ * @param {string|null|undefined} teams - Teams description (e.g., "Lakers vs Celtics")
+ * @returns {Object} { valid: boolean, sanitized?: string|null, error?: string }
+ */
+function validateTeams(teams) {
+  // Optional field - null/undefined is valid
+  if (teams === null || teams === undefined || teams === '') {
+    return { valid: true, sanitized: null };
+  }
+
+  if (typeof teams !== 'string') {
+    return { valid: false, error: 'Teams must be a string' };
+  }
+
+  const trimmed = teams.trim();
+
+  if (trimmed.length > 100) {
+    return { valid: false, error: 'Teams must be 100 characters or less' };
+  }
+
+  // Escape HTML entities
+  const sanitized = validator.escape(trimmed);
+
+  return { valid: true, sanitized };
+}
+
+/**
+ * Validate game date (optional)
+ *
+ * @param {string|null|undefined} gameDate - ISO date string or date input value
+ * @returns {Object} { valid: boolean, sanitized?: Date|null, error?: string }
+ */
+function validateGameDate(gameDate) {
+  // Optional field - null/undefined is valid
+  if (gameDate === null || gameDate === undefined || gameDate === '') {
+    return { valid: true, sanitized: null };
+  }
+
+  if (typeof gameDate !== 'string') {
+    return { valid: false, error: 'Game date must be a string' };
+  }
+
+  // Try to parse the date
+  const parsed = new Date(gameDate);
+
+  if (isNaN(parsed.getTime())) {
+    return { valid: false, error: 'Invalid date format' };
+  }
+
+  return { valid: true, sanitized: parsed };
+}
+
+/**
  * Validate game time values (multi-sport support)
  *
  * Validation rules vary by sport:
@@ -263,4 +345,7 @@ module.exports = {
   validateRoomId,
   validateGameTime,
   validateSportType,
+  validateRoomName,
+  validateTeams,
+  validateGameDate,
 };

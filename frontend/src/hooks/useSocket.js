@@ -230,7 +230,11 @@ export function useSocket() {
       }
 
       // Update store with room info (including sessionId and sport info)
-      setRoom(data.roomId, data.nickname, data.sessionId, data.sportType, data.sportConfig);
+      setRoom(data.roomId, data.nickname, data.sessionId, data.sportType, data.sportConfig, {
+        roomName: data.roomName,
+        teams: data.teams,
+        gameDate: data.gameDate
+      });
 
       // If user was viewing home when they refreshed, keep them on home screen
       if (shouldViewHome) {
@@ -355,7 +359,8 @@ export function useSocket() {
 
   // Join a room (with session support for reconnection)
   // sportType is only used when creating a new room (first joiner sets sport)
-  const joinRoom = useCallback((roomId, nickname, sportType = 'basketball') => {
+  // roomMetadata is optional: { roomName, teams, gameDate } - only used when creating
+  const joinRoom = useCallback((roomId, nickname, sportType = 'basketball', roomMetadata = null) => {
     if (socketRef.current) {
       // Check if we have a stored session for this room/nickname combo
       const storedSession = getStoredSession();
@@ -368,7 +373,18 @@ export function useSocket() {
         console.log('Found stored session, attempting reconnection...');
       }
 
-      socketRef.current.emit('join-room', { roomId, nickname, sessionId, sportType });
+      socketRef.current.emit('join-room', {
+        roomId,
+        nickname,
+        sessionId,
+        sportType,
+        // Include metadata only when creating a new room
+        ...(roomMetadata && {
+          roomName: roomMetadata.roomName,
+          teams: roomMetadata.teams,
+          gameDate: roomMetadata.gameDate
+        })
+      });
     }
   }, []);
 

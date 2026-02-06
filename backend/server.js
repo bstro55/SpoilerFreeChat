@@ -183,7 +183,7 @@ io.on('connection', async (socket) => {
   // Handle joining a room (now async for database operations)
   socket.on('join-room', async (data) => {
     try {
-      const { roomId, nickname, sessionId: clientSessionId, sportType } = data;
+      const { roomId, nickname, sessionId: clientSessionId, sportType, roomName, teams, gameDate } = data;
 
       // Validate and sanitize room ID
       const roomValidation = validation.validateRoomId(roomId);
@@ -210,15 +210,47 @@ io.on('connection', async (socket) => {
         sanitizedSportType = sportValidation.sanitized;
       }
 
+      // Validate and sanitize room metadata (optional fields)
+      let roomMetadata = null;
+      if (roomName || teams || gameDate) {
+        // Validate room name
+        const roomNameValidation = validation.validateRoomName(roomName);
+        if (!roomNameValidation.valid) {
+          socket.emit('error', { message: roomNameValidation.error });
+          return;
+        }
+
+        // Validate teams
+        const teamsValidation = validation.validateTeams(teams);
+        if (!teamsValidation.valid) {
+          socket.emit('error', { message: teamsValidation.error });
+          return;
+        }
+
+        // Validate game date
+        const gameDateValidation = validation.validateGameDate(gameDate);
+        if (!gameDateValidation.valid) {
+          socket.emit('error', { message: gameDateValidation.error });
+          return;
+        }
+
+        roomMetadata = {
+          roomName: roomNameValidation.sanitized,
+          teams: teamsValidation.sanitized,
+          gameDate: gameDateValidation.sanitized
+        };
+      }
+
       const sanitizedRoomId = roomValidation.sanitized;
       const sanitizedNickname = nicknameValidation.sanitized;
 
-      // Get or create session in database (pass sport type for new rooms)
+      // Get or create session in database (pass sport type and metadata for new rooms)
       const { session, room: dbRoom, isReconnect } = await sessionManager.getOrCreateSession(
         sanitizedRoomId,
         sanitizedNickname,
         clientSessionId,
-        sanitizedSportType
+        sanitizedSportType,
+        roomMetadata
       );
 
       // Use the room's sport type (first joiner sets it, subsequent joiners use existing)
@@ -234,7 +266,11 @@ io.on('connection', async (socket) => {
           socket.authenticatedUser.id,
           sanitizedRoomId,
           sanitizedNickname,
-          effectiveSportType  // Phase 8: Track sport type
+          effectiveSportType,  // Phase 8: Track sport type
+          // Phase 11: Track room metadata
+          dbRoom.roomName,
+          dbRoom.teams,
+          dbRoom.gameDate
         );
       }
 
@@ -309,7 +345,11 @@ io.on('connection', async (socket) => {
           periodDurationMinutes: sportConfig.periodDurationMinutes,
           clockDirection: sportConfig.clockDirection,
           maxMinutes: sportConfig.maxMinutes
-        }
+        },
+        // Room metadata (Phase 11)
+        roomName: dbRoom.roomName || null,
+        teams: dbRoom.teams || null,
+        gameDate: dbRoom.gameDate || null
       });
 
       // Notify others in the room (include sync status)

@@ -99,13 +99,16 @@ async function updatePreferences(userId, preferences) {
  * @param {string} roomCode - The room code (e.g., "lakers-vs-celtics")
  * @param {string} nickname - The nickname used in this room
  * @param {string} sportType - The sport type for the room (Phase 8)
+ * @param {string|null} roomName - Display name for the room (Phase 11)
+ * @param {string|null} teams - Teams playing (Phase 11)
+ * @param {Date|null} gameDate - Date of the game (Phase 11)
  * @returns {Promise<void>}
  */
-async function trackRecentRoom(userId, roomCode, nickname, sportType = 'basketball') {
+async function trackRecentRoom(userId, roomCode, nickname, sportType = 'basketball', roomName = null, teams = null, gameDate = null) {
   if (!userId || !roomCode || !nickname) return;
 
   // Upsert the recent room entry
-  // If it already exists, update the visitedAt, nickname, and sportType
+  // If it already exists, update the visitedAt, nickname, sportType, and metadata
   await prisma.recentRoom.upsert({
     where: {
       userId_roomCode: { userId, roomCode },
@@ -114,12 +117,18 @@ async function trackRecentRoom(userId, roomCode, nickname, sportType = 'basketba
       visitedAt: new Date(),
       nickname: nickname,
       sportType: sportType,
+      roomName: roomName,
+      teams: teams,
+      gameDate: gameDate,
     },
     create: {
       userId,
       roomCode,
       nickname,
       sportType: sportType,
+      roomName: roomName,
+      teams: teams,
+      gameDate: gameDate,
     },
   });
 
@@ -171,6 +180,10 @@ async function getRecentRooms(userId) {
       nickname: true,
       sportType: true,  // Phase 8: Include sport type
       visitedAt: true,
+      // Phase 11: Include room metadata
+      roomName: true,
+      teams: true,
+      gameDate: true,
     },
   });
 

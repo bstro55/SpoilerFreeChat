@@ -2,8 +2,7 @@ import { useEffect } from 'react';
 import useChatStore from './store/chatStore';
 import useAuthStore from './store/authStore';
 import useSocket from './hooks/useSocket';
-import Header from './components/Header';
-import JoinRoom from './components/JoinRoom';
+import HomePage from './components/HomePage';
 import ChatRoom from './components/ChatRoom';
 import { Spinner } from './components/ui/spinner';
 
@@ -61,17 +60,15 @@ function App() {
   }
 
   // Determine which view to show:
-  // - No room: JoinRoom (no header needed)
-  // - In room + viewingHome: Header + JoinRoom (with "Return to Room" option)
+  // - No room: HomePage (has its own header)
+  // - In room + viewingHome: HomePage (handles "Return to Room" internally)
   // - In room + not viewingHome: ChatRoom (has its own header with Home button)
-  const showJoinRoom = !roomId || viewingHome;
-  const showHeader = roomId && viewingHome; // Only show header when viewing home while in room
+  const showHomePage = !roomId || viewingHome;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {showHeader && <Header />}
-      {showJoinRoom ? (
-        <JoinRoom onJoin={joinRoom} />
+      {showHomePage ? (
+        <HomePage onJoin={joinRoom} />
       ) : (
         <ChatRoom
           onSendMessage={sendMessage}

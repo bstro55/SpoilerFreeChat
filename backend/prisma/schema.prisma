@@ -13,8 +13,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")      // Pooler connection for runtime (port 6543)
+  directUrl = env("DIRECT_URL")        // Session mode for migrations (port 5432)
 }
 
 // Authenticated user account (optional - guests don't have one)
@@ -40,15 +41,21 @@ model User {
 // Tracks recently visited rooms for authenticated users
 // Enables "quick rejoin" feature on the join screen
 model RecentRoom {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  roomCode  String   // The room's user-friendly code
-  nickname  String   // Nickname used in this room
-  sportType String   @default("basketball") // Sport type for display (Phase 8)
-  visitedAt DateTime @default(now())
+  roomCode  String    // The room's shareable code
+  nickname  String    // Nickname used in this room
+  sportType String    @default("basketball") // Sport type for display (Phase 8)
+
+  // Denormalized room metadata for display (Phase 11)
+  roomName  String?   // Display name at time of visit
+  teams     String?   // Teams at time of visit
+  gameDate  DateTime? // Game date at time of visit
+
+  visitedAt DateTime  @default(now())
 
   // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roomCode]) // One entry per room per user
   @@index([userId, visitedAt]) // For sorting recent rooms by visit time
@@ -57,8 +64,14 @@ model RecentRoom {
 // Represents a chat room for a specific game/event
 model Room {
   id             String    @id @default(cuid())
-  roomCode       String    @unique  // User-friendly room ID like "lakers-vs-celtics"
+  roomCode       String    @unique  // Shareable room code like "GAME-X7K2"
   sportType      String    @default("basketball") // Sport type: basketball, football, hockey, soccer (Phase 8)
+
+  // Room metadata (Phase 11 - Landing Page Redesign)
+  roomName       String?   // Display name like "Super Bowl Watch Party"
+  teams          String?   // e.g., "Chiefs vs Eagles"
+  gameDate       DateTime? // When the game is scheduled
+
   createdAt      DateTime  @default(now())
   lastActivityAt DateTime  @default(now()) @updatedAt
 

@@ -167,3 +167,36 @@ body {
     color: var(--foreground);
   }
 }
+
+/* Landing Page Gradient Text */
+.text-gradient-green {
+  background: linear-gradient(135deg, #22c55e 0%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card Hover Effect */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: scale(1.02);
+}
+.dark .card-hover:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+:root .card-hover:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Sport-colored borders for room cards */
+.border-sport-basketball { border-left: 4px solid #f97316; }
+.border-sport-football { border-left: 4px solid #f97316; }
+.border-sport-hockey { border-left: 4px solid #3b82f6; }
+.border-sport-soccer { border-left: 4px solid #22c55e; }
+
+/* Hero section gradient background */
+.hero-gradient {
+  background: radial-gradient(ellipse at top, oklch(0.25 0.05 195 / 30%) 0%, transparent 60%);
+}

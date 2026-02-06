@@ -85,14 +85,31 @@ const useChatStore = create((set) => ({
   sessionId: null,  // Database session ID for reconnection
   sportType: null,  // Sport type for the room (Phase 8)
   sportConfig: null, // Sport-specific config from server (Phase 8)
-  setRoom: (roomId, nickname, sessionId = null, sportType = null, sportConfig = null) =>
-    set({ roomId, nickname, sessionId, sportType, sportConfig, viewingHome: false }),
+  // Room metadata (Phase 11)
+  roomName: null,  // Display name for the room
+  teams: null,     // Teams playing (e.g., "Lakers vs Celtics")
+  gameDate: null,  // Date of the game
+  setRoom: (roomId, nickname, sessionId = null, sportType = null, sportConfig = null, roomMetadata = null) =>
+    set({
+      roomId,
+      nickname,
+      sessionId,
+      sportType,
+      sportConfig,
+      roomName: roomMetadata?.roomName || null,
+      teams: roomMetadata?.teams || null,
+      gameDate: roomMetadata?.gameDate || null,
+      viewingHome: false
+    }),
   clearRoom: () => set({
     roomId: null,
     nickname: null,
     sessionId: null,
     sportType: null,
     sportConfig: null,
+    roomName: null,
+    teams: null,
+    gameDate: null,
     users: [],
     messages: [],
     // Reset sync state when leaving room

@@ -85,36 +85,62 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 **Goal:** Improve navigation and room creation flows to make the app feel more professional.
 
 **What Was Done:**
-- Added Home button to ChatRoom header (returns to JoinRoom without leaving room)
-- Added "Return to Room" notice when viewing home while still connected
-- Implemented Create vs Join room toggle in JoinRoom
+- New HomePage with hero section, feature cards, and professional landing experience
+- CreateRoomModal with room metadata (room name, teams, game date)
 - Auto-generated shareable room codes (e.g., "GAME-X7K2")
 - Copy-to-clipboard functionality for room codes
-- Added "How it works" collapsible explainer
-- Added "Why sign in?" hint for guests
-- Created loading spinner component
-- Improved loading/reconnecting states with spinner
+- Join by code form on homepage
+- Home button in ChatRoom header (returns to homepage without leaving room)
+- "Return to Room" notice when viewing home while still connected
+- Recent rooms display with room metadata
+- Loading spinner component
+- Database schema updated with room metadata fields (roomName, teams, gameDate)
+- Created baseline migration for all Phase 7, 8, 11 schema changes
+
+**New Files:**
+- `frontend/src/components/HomePage.jsx` - New landing page with hero section
+- `frontend/src/components/CreateRoomModal.jsx` - Room creation modal with metadata
+- `frontend/src/components/ui/spinner.jsx` - Loading spinner component
+- `backend/prisma/migrations/20260204000000_baseline_phase_7_8_11/` - Baseline migration
 
 **Files Modified:**
-- `frontend/src/store/chatStore.js` - Added viewingHome state
-- `frontend/src/components/Header.jsx` - New navigation header (breadcrumbs)
-- `frontend/src/components/JoinRoom.jsx` - Create/Join toggle, room codes, onboarding
+- `frontend/src/App.jsx` - Uses HomePage, improved loading states
+- `frontend/src/store/chatStore.js` - Added viewingHome state, room metadata
+- `frontend/src/hooks/useSocket.js` - Passes room metadata when creating rooms
 - `frontend/src/components/ChatRoom.jsx` - Home button in header
-- `frontend/src/components/ui/spinner.jsx` - New loading spinner
-- `frontend/src/App.jsx` - Navigation routing, improved loading states
+- `backend/server.js` - Handles room metadata in join-room event
+- `backend/services/validation.js` - Validates roomName, teams, gameDate
+- `backend/services/sessionManager.js` - Stores room metadata
+- `backend/services/userService.js` - Tracks room metadata in recent rooms
+- `backend/prisma/schema.prisma` - Added roomName, teams, gameDate fields
+
+**Local Testing URL:** http://localhost:5174
+
+**How to Start Servers:**
+```bash
+# Terminal 1 - Backend
+cd backend
+npm run dev
+
+# Terminal 2 - Frontend
+cd frontend
+npm run dev
+```
 
 **Testing Checklist:**
-- [ ] Open app → see Create/Join toggle, Create mode by default
-- [ ] Create mode shows generated room code with copy button
-- [ ] Join mode shows room code input field
-- [ ] "How it works" expands/collapses
-- [ ] Sign-in hint shows for guests only
-- [ ] Create & Join creates room with generated code
-- [ ] In ChatRoom, Home button returns to JoinRoom
-- [ ] "Return to Room" notice shows with Return button
-- [ ] Leave Room still clears session properly
-- [ ] Page refresh reconnects smoothly with spinner
-- [ ] Recent rooms still work (quick rejoin)
+- [ ] Open http://localhost:5174 → see hero section with "Create Game Room" button
+- [ ] Click "Create Game Room" → modal opens with room name, sport, teams, date fields
+- [ ] Room code is auto-generated (e.g., "GAME-X7K2")
+- [ ] Copy button works for room code
+- [ ] Fill in nickname and click "Create Room" → enters ChatRoom
+- [ ] In ChatRoom, click Home button (top left) → returns to homepage
+- [ ] "Return to Room" notice shows with your room code
+- [ ] Click "Return to Room" → back in ChatRoom
+- [ ] Click "Leave Room" → fully exits and clears session
+- [ ] Join by code form works (enter nickname + room code on homepage)
+- [ ] Page refresh while in room → reconnects with spinner
+- [ ] Sign in with Google → recent rooms appear after joining rooms
+- [ ] Recent rooms show room metadata (name, teams, date if provided)
 
 ---
 

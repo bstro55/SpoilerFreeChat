@@ -31,15 +31,28 @@ const RECONNECT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
  * @param {string} nickname - The user's display name
  * @param {string|null} existingSessionId - Session ID from client (if reconnecting)
  * @param {string} sportType - Sport type for new rooms (Phase 8)
+ * @param {Object|null} roomMetadata - Optional room metadata for new rooms (Phase 11)
+ * @param {string|null} roomMetadata.roomName - Display name for the room
+ * @param {string|null} roomMetadata.teams - Teams playing (e.g., "Lakers vs Celtics")
+ * @param {Date|null} roomMetadata.gameDate - Date of the game
  * @returns {Promise<{session: Object, room: Object, isReconnect: boolean}>}
  */
-async function getOrCreateSession(roomCode, nickname, existingSessionId = null, sportType = 'basketball') {
+async function getOrCreateSession(roomCode, nickname, existingSessionId = null, sportType = 'basketball', roomMetadata = null) {
   // First, ensure the room exists (create if it doesn't)
-  // First joiner's sport type is used; existing rooms keep their type
+  // First joiner's sport type and metadata is used; existing rooms keep their values
   const room = await prisma.room.upsert({
     where: { roomCode },
-    create: { roomCode, sportType },  // Set sport type on creation
-    update: { lastActivityAt: new Date() }  // Don't change sport type for existing rooms
+    create: {
+      roomCode,
+      sportType,
+      // Include room metadata if provided
+      ...(roomMetadata && {
+        roomName: roomMetadata.roomName || null,
+        teams: roomMetadata.teams || null,
+        gameDate: roomMetadata.gameDate || null
+      })
+    },
+    update: { lastActivityAt: new Date() }  // Don't change metadata for existing rooms
   });
 
   // If client provided a session ID, try to reconnect to it
