@@ -25,9 +25,9 @@ import { getAllSports, DEFAULT_SPORT, getSportConfig } from '../lib/sportConfig'
  */
 function FeatureCard({ icon: Icon, title, description, color }) {
   return (
-    <Card className="card-hover p-6 text-center">
-      <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-4 ${color}`}>
-        <Icon className="h-6 w-6" />
+    <Card className="card-hover p-6 flex flex-col items-center text-center">
+      <div className={`flex items-center justify-center w-16 h-16 rounded-full mb-4 ${color}`}>
+        <Icon className="h-8 w-8" />
       </div>
       <h3 className="font-semibold mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground">{description}</p>
