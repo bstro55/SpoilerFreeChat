@@ -63,7 +63,7 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## Current State
 
-- **Phase**: Phase 10 In Progress (UX Polish & Navigation) 🧭
+- **Phase**: Phase 10 Complete (Landing Page Redesign) ✅
 - **Tech stack**: React + Vite + Tailwind + Shadcn/UI (frontend), Node.js + Express + Socket.IO + Prisma (backend)
 - **Database**: Supabase PostgreSQL for persistence
 - **Authentication**: Google OAuth via Supabase Auth (optional - guests still supported)
@@ -80,7 +80,7 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
 
-## 🚧 Phase 10 In Progress (UX Polish & Navigation) - 2026-02-03
+## ✅ Phase 10 Complete (Landing Page Redesign) - 2026-02-04
 
 **Goal:** Improve navigation and room creation flows to make the app feel more professional.
 
@@ -96,51 +96,14 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - Loading spinner component
 - Database schema updated with room metadata fields (roomName, teams, gameDate)
 - Created baseline migration for all Phase 7, 8, 11 schema changes
+- Fixed Prisma migration drift with proper baselining approach
 
-**New Files:**
+**Key Files Added:**
 - `frontend/src/components/HomePage.jsx` - New landing page with hero section
 - `frontend/src/components/CreateRoomModal.jsx` - Room creation modal with metadata
-- `frontend/src/components/ui/spinner.jsx` - Loading spinner component
 - `backend/prisma/migrations/20260204000000_baseline_phase_7_8_11/` - Baseline migration
 
-**Files Modified:**
-- `frontend/src/App.jsx` - Uses HomePage, improved loading states
-- `frontend/src/store/chatStore.js` - Added viewingHome state, room metadata
-- `frontend/src/hooks/useSocket.js` - Passes room metadata when creating rooms
-- `frontend/src/components/ChatRoom.jsx` - Home button in header
-- `backend/server.js` - Handles room metadata in join-room event
-- `backend/services/validation.js` - Validates roomName, teams, gameDate
-- `backend/services/sessionManager.js` - Stores room metadata
-- `backend/services/userService.js` - Tracks room metadata in recent rooms
-- `backend/prisma/schema.prisma` - Added roomName, teams, gameDate fields
-
-**Local Testing URL:** http://localhost:5174
-
-**How to Start Servers:**
-```bash
-# Terminal 1 - Backend
-cd backend
-npm run dev
-
-# Terminal 2 - Frontend
-cd frontend
-npm run dev
-```
-
-**Testing Checklist:**
-- [ ] Open http://localhost:5174 → see hero section with "Create Game Room" button
-- [ ] Click "Create Game Room" → modal opens with room name, sport, teams, date fields
-- [ ] Room code is auto-generated (e.g., "GAME-X7K2")
-- [ ] Copy button works for room code
-- [ ] Fill in nickname and click "Create Room" → enters ChatRoom
-- [ ] In ChatRoom, click Home button (top left) → returns to homepage
-- [ ] "Return to Room" notice shows with your room code
-- [ ] Click "Return to Room" → back in ChatRoom
-- [ ] Click "Leave Room" → fully exits and clears session
-- [ ] Join by code form works (enter nickname + room code on homepage)
-- [ ] Page refresh while in room → reconnects with spinner
-- [ ] Sign in with Google → recent rooms appear after joining rooms
-- [ ] Recent rooms show room metadata (name, teams, date if provided)
+**Deployed:** 2026-02-04 - All features tested and working in production
 
 ---
 
@@ -324,13 +287,13 @@ Manual testing with multiple browser tabs:
 5. Send messages and verify delays match offsets
 6. Verify second joiner gets room's sport type (not their selection)
 
-## Future: Phase 10+ Ideas
+## Future Ideas (Phase 11+)
 
-### Additional UI Polish
+### UI Polish
 - Subtle gradients on buttons or headers
 - More refined shadows and depth
 - Animated transitions between states
-- Mobile responsiveness improvements
+- Mobile responsiveness improvements (high priority for real users)
 
 ### Feature Ideas
 - Multiple theme options (not just light/dark, but different accent colors)
@@ -338,6 +301,7 @@ Manual testing with multiple browser tabs:
 - Typing indicators
 - Read receipts
 - Message reactions/emoji
+- Custom room codes (let creators choose their own code)
 
 ## Other Future Polish
 
@@ -345,28 +309,28 @@ Manual testing with multiple browser tabs:
 
 ## UX Improvements (Identified 2026-02-01)
 
-These improvements were identified during Phase 7/8 testing and should be addressed in a future session:
+**Status: Most items addressed in Phase 10!**
 
 ### Navigation & Multi-Room Support
-- **Home/Back button**: Add a way to return to the main screen without "Leave Room" (which clears session)
-- **Room switcher**: Consider supporting multiple active rooms or at least easier room switching
-- **Breadcrumb navigation**: Show current location (e.g., "Home > Room: Lakers-Game")
+- [x] **Home/Back button**: Added Home button in ChatRoom header - returns to homepage without leaving room
+- [ ] **Room switcher**: Consider supporting multiple active rooms or at least easier room switching
+- [ ] **Breadcrumb navigation**: Show current location (e.g., "Home > Room: Lakers-Game")
 
 ### Room Creation vs Joining
-- **Separate flows**: Distinguish between "Create New Room" and "Join Existing Room"
-- **Auto-generated room codes**: When creating, auto-generate a shareable code (e.g., "LAKERS-X7K2")
-- **Custom room codes**: Let creators choose their own code if they prefer
-- **Room discovery**: Consider if rooms should be listed/searchable (privacy implications)
+- [x] **Separate flows**: HomePage now has "Create Game Room" button and "Join by code" form
+- [x] **Auto-generated room codes**: Room codes like "GAME-X7K2" are auto-generated with copy button
+- [ ] **Custom room codes**: Let creators choose their own code if they prefer
+- [ ] **Room discovery**: Consider if rooms should be listed/searchable (privacy implications)
 
 ### Sign-In Benefits Clarity
-- **Onboarding**: Explain what signing in provides (saved preferences, recent rooms, etc.)
-- **Guest limitations**: Make clear what guests can't do (no saved preferences, no room history)
-- **Preferences visibility**: Make the gear/settings button more discoverable
+- [x] **Onboarding**: HomePage shows benefits of signing in for guests
+- [x] **Guest limitations**: Clear messaging about what guests can/can't do
+- [ ] **Preferences visibility**: Make the gear/settings button more discoverable
 
 ### General UX
-- **Empty state for Recent Rooms**: Show "Join rooms to see them here" for signed-in users with no history
-- **Room persistence indicator**: Show users they're reconnected vs starting fresh
-- **Loading states**: Better feedback during reconnection attempts
+- [x] **Empty state for Recent Rooms**: Shows helpful message for signed-in users with no room history
+- [x] **Room persistence indicator**: "Return to Room" notice when viewing home while connected
+- [x] **Loading states**: Spinner component with "Reconnecting..." feedback
 
 ---
 
@@ -376,7 +340,7 @@ Before considering the app "shippable" for real users, address these items:
 
 ### Critical (Must Fix)
 - [x] **Prisma/Supabase connection stability** - Fixed with pgbouncer flag and retry logic
-- [ ] **Reconnection robustness** - Don't get stuck on "Reconnecting..." forever; add timeout/fallback
+- [x] **Reconnection robustness** - Added 10-second timeout with fallback to JoinRoom
 - [x] **Better error handling** - Added retry logic for transient database errors
 
 ### Important (Should Fix)
