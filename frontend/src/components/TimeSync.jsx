@@ -107,12 +107,12 @@ function TimeSync({ onSync }) {
         <form onSubmit={handleSync} className="space-y-3">
           <div className="flex items-end gap-2">
             {/* Period Selector - Dynamic based on sport */}
-            <div className="space-y-1">
+            <div className="space-y-1 flex-1 min-w-0">
               <Label htmlFor="period" className="text-xs">
                 {config.periodLabel}
               </Label>
               <Select value={period} onValueChange={setPeriod}>
-                <SelectTrigger className="w-20 h-9">
+                <SelectTrigger className="w-full h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -126,7 +126,7 @@ function TimeSync({ onSync }) {
             </div>
 
             {/* Minutes Input - Dynamic max based on sport */}
-            <div className="space-y-1">
+            <div className="space-y-1 flex-1 min-w-0">
               <Label htmlFor="minutes" className="text-xs">Min</Label>
               <Input
                 type="number"
@@ -137,14 +137,14 @@ function TimeSync({ onSync }) {
                   : config.maxMinutes}
                 value={minutes}
                 onChange={(e) => setMinutes(e.target.value)}
-                className="w-14 h-9"
+                className="w-full h-9"
               />
             </div>
 
-            <span className="text-lg font-bold mb-1">:</span>
+            <span className="text-lg font-bold mb-1 flex-shrink-0">:</span>
 
             {/* Seconds Input - Same for all sports */}
-            <div className="space-y-1">
+            <div className="space-y-1 flex-1 min-w-0">
               <Label htmlFor="seconds" className="text-xs">Sec</Label>
               <Input
                 type="number"
@@ -153,7 +153,7 @@ function TimeSync({ onSync }) {
                 max="59"
                 value={seconds}
                 onChange={(e) => setSeconds(e.target.value)}
-                className="w-14 h-9"
+                className="w-full h-9"
               />
             </div>
           </div>

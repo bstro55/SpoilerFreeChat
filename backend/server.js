@@ -1,6 +1,17 @@
 // Load environment variables first
 require('dotenv').config();
 
+// Initialize Sentry for error tracking (must be before other requires)
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    // Capture 10% of transactions for performance monitoring in production
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+  });
+}
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -15,6 +26,7 @@ const sessionManager = require('./services/sessionManager');
 const authService = require('./services/authService');
 const userService = require('./services/userService');
 const { getSportConfig, DEFAULT_SPORT } = require('./services/sportConfig');
+const logger = require('./services/logger');
 
 // Create Express app and HTTP server
 const app = express();
@@ -118,7 +130,7 @@ app.get('/api/user/preferences', requireAuth, async (req, res) => {
     const preferences = await userService.getPreferences(req.user.id);
     res.json(preferences || {});
   } catch (error) {
-    console.error('Error getting preferences:', error);
+    logger.error({ err: error, userId: req.user.id }, 'Error getting preferences');
     res.status(500).json({ error: 'Failed to get preferences' });
   }
 });
@@ -137,7 +149,7 @@ app.patch('/api/user/preferences', requireAuth, async (req, res) => {
     });
     res.json(updated);
   } catch (error) {
-    console.error('Error updating preferences:', error);
+    logger.error({ err: error, userId: req.user.id }, 'Error updating preferences');
     if (error.message.includes('must be')) {
       // Validation error
       res.status(400).json({ error: error.message });
@@ -156,14 +168,14 @@ app.get('/api/user/recent-rooms', requireAuth, async (req, res) => {
     const recentRooms = await userService.getRecentRooms(req.user.id);
     res.json(recentRooms);
   } catch (error) {
-    console.error('Error getting recent rooms:', error);
+    logger.error({ err: error }, 'Error getting recent rooms');
     res.status(500).json({ error: 'Failed to get recent rooms' });
   }
 });
 
 // Socket.IO connection handling
 io.on('connection', async (socket) => {
-  console.log(`User connected: ${socket.id}`);
+  logger.info({ socketId: socket.id }, 'User connected');
 
   // Authenticate if token provided (optional - guests don't have tokens)
   const token = socket.handshake.auth?.token;
@@ -172,11 +184,11 @@ io.on('connection', async (socket) => {
       const user = await authService.authenticateToken(token);
       if (user) {
         socket.authenticatedUser = user;
-        console.log(`Authenticated user: ${user.email || user.id}`);
+        logger.info({ socketId: socket.id, userId: user.id }, 'User authenticated');
       }
     } catch (error) {
       // Invalid token - continue as guest (don't block connection)
-      console.log('Invalid auth token, continuing as guest');
+      logger.debug({ socketId: socket.id }, 'Invalid auth token, continuing as guest');
     }
   }
 
@@ -286,7 +298,7 @@ io.on('connection', async (socket) => {
       if (isReconnect) {
         restoredGameTime = await sessionManager.getSessionGameTime(session.id);
         if (restoredGameTime) {
-          console.log(`[Session] Restoring game time for ${sanitizedNickname}: Q${restoredGameTime.quarter} ${restoredGameTime.minutes}:${restoredGameTime.seconds}`);
+          logger.debug({ nickname: sanitizedNickname, gameTime: restoredGameTime }, 'Restored game time');
         }
       }
 
@@ -362,9 +374,9 @@ io.on('connection', async (socket) => {
         offsetFormatted: isSynced ? require('./services/timeUtils').formatOffset(user.offset) : 'Not synced'
       });
 
-      console.log(`${sanitizedNickname} ${isReconnect ? 'reconnected to' : 'joined'} room: ${sanitizedRoomId}`);
+      logger.info({ nickname: sanitizedNickname, roomId: sanitizedRoomId, isReconnect }, 'User joined room');
     } catch (error) {
-      console.error('Error in join-room:', error);
+      logger.error({ err: error, event: 'join-room' }, 'Error joining room');
       socket.emit('error', { message: 'Failed to join room. Please try again.' });
     }
   });
@@ -407,7 +419,7 @@ io.on('connection', async (socket) => {
           { period, minutes, seconds },
           result.elapsedSeconds
         ).catch(err => {
-          console.error(`Failed to persist game time for ${nickname}:`, err.message);
+          logger.error({ err, nickname }, 'Failed to persist game time');
         });
       }
 
@@ -460,9 +472,9 @@ io.on('connection', async (socket) => {
       // Get display format for logging
       const timeUtils = require('./services/timeUtils');
       const displayTime = timeUtils.elapsedSecondsToGameTime(result.elapsedSeconds, sportType);
-      console.log(`${nickname} synced in ${roomId}: ${displayTime.display} (${sportType}) - ${result.offsetFormatted}`);
+      logger.info({ nickname, roomId, gameTime: displayTime.display, sportType, offset: result.offsetFormatted }, 'User synced game time');
     } catch (error) {
-      console.error('Error in sync-game-time:', error);
+      logger.error({ err: error, event: 'sync-game-time' }, 'Error syncing game time');
       socket.emit('error', { message: 'Failed to sync game time. Please try again.' });
     }
   });
@@ -543,7 +555,7 @@ io.on('connection', async (socket) => {
       messageQueue.queueMessage(recipientSocketId, message, deliverAt);
     }
 
-    console.log(`Message in ${roomId} from ${nickname}: ${sanitizedContent.substring(0, 50)}...`);
+    logger.debug({ roomId, nickname, messagePreview: sanitizedContent.substring(0, 50) }, 'Message sent');
   });
 
   // Handle disconnection
@@ -555,7 +567,7 @@ io.on('connection', async (socket) => {
     // Clear any queued messages for this user (they won't receive them)
     const clearedCount = messageQueue.clearUserQueue(socket.id);
     if (clearedCount > 0) {
-      console.log(`[MessageQueue] Cleared ${clearedCount} queued messages for ${nickname || socket.id}`);
+      logger.debug({ nickname, clearedCount }, 'Cleared queued messages');
     }
 
     // Clear rate limiter data for this user
@@ -564,7 +576,7 @@ io.on('connection', async (socket) => {
     // Mark session as disconnected in database (but keep it active for reconnection)
     if (sessionId) {
       sessionManager.disconnectSession(sessionId).catch(err => {
-        console.error(`Failed to disconnect session for ${nickname}:`, err.message);
+        logger.error({ err, nickname }, 'Failed to disconnect session');
       });
     }
 
@@ -578,10 +590,10 @@ io.on('connection', async (socket) => {
         nickname
       });
 
-      console.log(`${nickname || socket.id} left room: ${roomId}`);
+      logger.info({ nickname, roomId }, 'User left room');
     }
 
-    console.log(`User disconnected: ${socket.id}`);
+    logger.info({ socketId: socket.id }, 'User disconnected');
   });
 });
 
@@ -601,7 +613,7 @@ setInterval(() => {
       if (now - user.joinedAt > SESSION_MAX_AGE_MS) {
         const socket = io.sockets.sockets.get(user.id);
         if (socket) {
-          console.log(`[Session] Expiring session for ${user.nickname} in room ${roomInfo.id}`);
+          logger.info({ nickname: user.nickname, roomId: roomInfo.id }, 'Session expired');
           socket.emit('session-expired', {
             message: 'Your session has expired after 4 hours. Please rejoin the room.'
           });
@@ -618,7 +630,7 @@ setInterval(async () => {
   try {
     await sessionManager.expireDisconnectedSessions();
   } catch (error) {
-    console.error('[Cleanup] Error expiring sessions:', error.message);
+    logger.error({ err: error, task: 'expire-sessions' }, 'Cleanup error');
   }
 }, 5 * 60 * 1000);
 
@@ -628,12 +640,16 @@ setInterval(async () => {
   try {
     await sessionManager.cleanupOldData(7); // Delete data older than 7 days
   } catch (error) {
-    console.error('[Cleanup] Error cleaning old data:', error.message);
+    logger.error({ err: error, task: 'cleanup-old-data' }, 'Cleanup error');
   }
 }, 24 * 60 * 60 * 1000);
 
+// Sentry error handler (must be after all routes, before starting server)
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
+
 // Start the server
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`CORS enabled for: ${CORS_ORIGIN}`);
+  logger.info({ port: PORT, cors: CORS_ORIGIN }, 'Server started');
 });

@@ -37,6 +37,7 @@
 const timeUtils = require('./timeUtils');
 const prisma = require('./database');
 const { DEFAULT_SPORT } = require('./sportConfig');
+const logger = require('./logger');
 
 // Maximum number of messages to keep in room history (in-memory cache)
 const MAX_MESSAGES_PER_ROOM = 50;
@@ -87,10 +88,10 @@ function initializeRoom(roomId, dbRoomId, messages = [], sportType = DEFAULT_SPO
       content: m.content,
       timestamp: m.timestamp.getTime()
     }));
-    console.log(`[Room ${roomId}] Loaded ${messages.length} messages from database`);
+    logger.debug({ roomId, messageCount: messages.length }, 'Loaded messages from database');
   }
 
-  console.log(`[Room ${roomId}] Initialized with sport type: ${sportType}`);
+  logger.debug({ roomId, sportType }, 'Room initialized');
   return room;
 }
 
@@ -236,18 +237,22 @@ function updateUserGameTime(roomId, socketId, period, minutes, seconds) {
 
   // Get display format for logging
   const displayTime = timeUtils.elapsedSecondsToGameTime(elapsedSeconds, sportType);
-  console.log(`[Room ${roomId}] ${user.nickname} synced at ${displayTime.display} (${sportType})`);
-  console.log(`  → Elapsed game time: ${elapsedSeconds} seconds`);
 
   // Recalculate all offsets
   const { maxElapsed, updatedUsers } = recalculateOffsets(roomId);
 
   const isBaseline = user.elapsedSeconds === maxElapsed;
 
-  console.log(`  → Max elapsed: ${maxElapsed}s, This user's offset: ${user.offset}ms (${timeUtils.formatOffset(user.offset)})`);
-  if (updatedUsers.size > 1) {
-    console.log(`  → ${updatedUsers.size} users had their offsets recalculated`);
-  }
+  logger.debug({
+    roomId,
+    nickname: user.nickname,
+    gameTime: displayTime.display,
+    sportType,
+    elapsedSeconds,
+    offset: user.offset,
+    isBaseline,
+    updatedUsersCount: updatedUsers.size
+  }, 'User game time synced');
 
   return {
     success: true,
@@ -320,7 +325,7 @@ function removeUser(roomId, socketId) {
       rooms.delete(roomId);
     } else if (wasMaxElapsed) {
       // If the most advanced user left, recalculate for remaining users
-      console.log(`[Room ${roomId}] Most advanced user ${removedUser.nickname} left, recalculating offsets`);
+      logger.debug({ roomId, nickname: removedUser.nickname }, 'Most advanced user left, recalculating offsets');
       const result = recalculateOffsets(roomId);
       updatedUsers = result.updatedUsers;
     }
@@ -371,7 +376,7 @@ function addMessage(roomId, message, sessionId = null) {
   // Persist to database asynchronously (don't block real-time delivery)
   if (room.dbId) {
     persistMessageToDb(room.dbId, message, sessionId).catch(err => {
-      console.error(`[Room ${roomId}] Failed to persist message:`, err.message);
+      logger.error({ err, roomId }, 'Failed to persist message');
     });
   }
 }

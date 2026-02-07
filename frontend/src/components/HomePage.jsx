@@ -91,7 +91,7 @@ function RoomCard({ room, onClick, disabled }) {
  *
  * Landing page with hero section, feature cards, and room management.
  */
-function HomePage({ onJoin }) {
+function HomePage({ onJoin, onNavigate }) {
   const { profile, session, fetchRecentRooms } = useAuthStore();
   const {
     isConnected,
@@ -248,14 +248,14 @@ function HomePage({ onJoin }) {
           </h3>
 
           {/* Join by Code Form */}
-          <form onSubmit={handleJoinWithCode} className="flex gap-2">
+          <form onSubmit={handleJoinWithCode} className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Input
               type="text"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               placeholder="Nickname"
               maxLength={30}
-              className="w-28"
+              className="w-full sm:w-28"
               required
             />
             <Input
@@ -264,13 +264,14 @@ function HomePage({ onJoin }) {
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               placeholder="Room code"
               maxLength={20}
-              className="w-32 font-mono uppercase"
+              className="w-full sm:w-32 font-mono uppercase"
               required
             />
             <Button
               type="submit"
               variant="secondary"
               disabled={!isConnected || !nickname.trim() || !joinCode.trim()}
+              className="w-full sm:w-auto"
             >
               Join
             </Button>
@@ -334,6 +335,27 @@ function HomePage({ onJoin }) {
         error={error}
         isConnected={isConnected}
       />
+
+      {/* Footer */}
+      <footer className="border-t border-border py-6 mt-auto">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+          <p>&copy; {new Date().getFullYear()} SpoilerFreeChat</p>
+          <div className="flex gap-4">
+            <button
+              onClick={() => onNavigate('privacy')}
+              className="hover:text-foreground transition-colors"
+            >
+              Privacy Policy
+            </button>
+            <button
+              onClick={() => onNavigate('terms')}
+              className="hover:text-foreground transition-colors"
+            >
+              Terms of Service
+            </button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

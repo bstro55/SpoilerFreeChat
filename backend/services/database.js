@@ -12,6 +12,7 @@
  */
 
 const { PrismaClient } = require('@prisma/client');
+const logger = require('./logger');
 
 // Create a single Prisma client instance
 // In development, we store it on globalThis to prevent multiple instances
@@ -63,10 +64,8 @@ async function withRetry(operation, maxRetries = 3, delayMs = 100) {
       const delay = delayMs * Math.pow(2, attempt - 1);
       await new Promise(resolve => setTimeout(resolve, delay));
 
-      // Log retry attempt in development
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[Database] Retrying operation (attempt ${attempt + 1}/${maxRetries}) after ${delay}ms`);
-      }
+      // Log retry attempt
+      logger.debug({ attempt: attempt + 1, maxRetries, delay }, 'Retrying database operation');
     }
   }
 

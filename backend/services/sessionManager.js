@@ -17,6 +17,7 @@
 
 const prisma = require('./database');
 const { withRetry } = require('./database');
+const logger = require('./logger');
 
 // How long a disconnected session remains valid for reconnection
 const RECONNECT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -69,7 +70,7 @@ async function getOrCreateSession(roomCode, nickname, existingSessionId = null, 
     });
 
     if (existingSession) {
-      console.log(`[Session] Reconnecting ${nickname} to existing session in room ${roomCode}`);
+      logger.info(`[Session] Reconnecting ${nickname} to existing session in room ${roomCode}`);
       return { session: existingSession, room, isReconnect: true };
     }
   }
@@ -86,7 +87,7 @@ async function getOrCreateSession(roomCode, nickname, existingSessionId = null, 
   });
 
   if (existingByNickname) {
-    console.log(`[Session] Found existing session for ${nickname} in room ${roomCode} by nickname`);
+    logger.info(`[Session] Found existing session for ${nickname} in room ${roomCode} by nickname`);
     return { session: existingByNickname, room, isReconnect: true };
   }
 
@@ -112,7 +113,7 @@ async function getOrCreateSession(roomCode, nickname, existingSessionId = null, 
     }
   });
 
-  console.log(`[Session] Created/reactivated session for ${nickname} in room ${roomCode}`);
+  logger.info(`[Session] Created/reactivated session for ${nickname} in room ${roomCode}`);
   return { session, room, isReconnect: false };
 }
 
@@ -257,7 +258,7 @@ async function cleanupOldData(maxAgeDays = 7) {
   });
 
   if (deletedSessions.count > 0 || deletedRooms.count > 0) {
-    console.log(`[Cleanup] Deleted ${deletedSessions.count} old sessions and ${deletedRooms.count} inactive rooms`);
+    logger.info(`[Cleanup] Deleted ${deletedSessions.count} old sessions and ${deletedRooms.count} inactive rooms`);
   }
 
   return { deletedSessions: deletedSessions.count, deletedRooms: deletedRooms.count };
@@ -281,13 +282,13 @@ async function expireDisconnectedSessions() {
     }));
 
     if (expired.count > 0) {
-      console.log(`[Session] Expired ${expired.count} disconnected sessions`);
+      logger.info(`[Session] Expired ${expired.count} disconnected sessions`);
     }
 
     return expired.count;
   } catch (error) {
     // Log but don't crash - cleanup is non-critical
-    console.error('[Cleanup] Error expiring sessions (will retry next cycle):', error.message);
+    logger.error('[Cleanup] Error expiring sessions (will retry next cycle):', error.message);
     return 0;
   }
 }

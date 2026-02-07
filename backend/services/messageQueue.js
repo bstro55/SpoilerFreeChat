@@ -34,6 +34,8 @@
  * }
  */
 
+const logger = require('./logger');
+
 // Store queued messages per user (socketId -> array of queued messages)
 const messageQueues = new Map();
 
@@ -58,7 +60,7 @@ const MAX_QUEUE_SIZE_PER_USER = 100;
 function initialize(io) {
   ioServer = io;
   startProcessor();
-  console.log('[MessageQueue] Initialized with 100ms processor interval');
+  logger.debug('[MessageQueue] Initialized with 100ms processor interval');
 }
 
 /**
@@ -83,7 +85,7 @@ function stopProcessor() {
   if (processorIntervalId) {
     clearInterval(processorIntervalId);
     processorIntervalId = null;
-    console.log('[MessageQueue] Processor stopped');
+    logger.debug('[MessageQueue] Processor stopped');
   }
 }
 
@@ -129,7 +131,7 @@ function processQueues() {
  */
 function deliverMessage(socketId, message) {
   if (!ioServer) {
-    console.error('[MessageQueue] Cannot deliver: Socket.IO not initialized');
+    logger.error('[MessageQueue] Cannot deliver: Socket.IO not initialized');
     return;
   }
 

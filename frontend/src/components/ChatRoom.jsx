@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Home } from 'lucide-react';
+import { Home, Menu, X } from 'lucide-react';
 import { getSportConfig } from '../lib/sportConfig';
 
 /**
@@ -26,6 +26,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [pendingMessage, setPendingMessage] = useState('');
   const [showResyncReminder, setShowResyncReminder] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -130,52 +131,94 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
       )}
 
       {/* Header */}
-      <header className="border-b border-border bg-card px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <header className="border-b border-border bg-card px-3 py-2 sm:px-4 sm:py-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            {/* Sidebar toggle (mobile only) */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 lg:hidden"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              title="Toggle sidebar"
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
             {/* Home button */}
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 hidden sm:flex"
               onClick={() => setViewingHome(true)}
               title="Go to Home"
             >
               <Home className="h-4 w-4" />
             </Button>
-            <div className="flex items-center gap-2">
-              <span className="text-xl" title={sportConfig.label}>{sportConfig.emoji}</span>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground leading-tight">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-xl flex-shrink-0" title={sportConfig.label}>{sportConfig.emoji}</span>
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-lg font-semibold text-foreground leading-tight truncate">
                   {roomName || `Room: ${roomId}`}
                 </h2>
                 {teams && (
-                  <p className="text-sm text-muted-foreground">{teams}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">{teams}</p>
                 )}
               </div>
             </div>
-            <Badge variant="secondary">
+            <Badge variant="secondary" className="hidden sm:inline-flex">
               {users.length} user{users.length !== 1 ? 's' : ''}
             </Badge>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {isSynced && (
-              <Badge variant="outline">{offsetFormatted}</Badge>
+              <Badge variant="outline" className="hidden sm:inline-flex">{offsetFormatted}</Badge>
             )}
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground hidden md:inline">
               Chatting as: <strong className="text-foreground">{nickname}</strong>
             </span>
             <AuthButton />
-            <Button variant="outline" size="sm" onClick={onLeaveRoom}>
-              Leave Room
+            <Button variant="outline" size="sm" onClick={onLeaveRoom} className="hidden sm:inline-flex">
+              Leave
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-72 border-r border-border bg-muted flex flex-col overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Mobile sidebar overlay backdrop */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar - hidden on mobile, slides in when toggled */}
+        <aside className={`
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0
+          fixed lg:relative
+          inset-y-0 left-0
+          z-50 lg:z-auto
+          w-72
+          border-r border-border bg-muted
+          flex flex-col overflow-hidden
+          transition-transform duration-200 ease-in-out
+          lg:transition-none
+        `}>
+          {/* Mobile sidebar header */}
+          <div className="flex items-center justify-between p-4 border-b border-border lg:hidden">
+            <span className="font-semibold">Game Settings</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
           <div className="p-4 flex-1 overflow-y-auto space-y-4">
             <TimeSync onSync={onSyncGameTime} />
 
@@ -210,6 +253,30 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
               </CardContent>
             </Card>
           </div>
+
+          {/* Mobile sidebar footer with Leave button */}
+          <div className="p-4 border-t border-border lg:hidden space-y-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => {
+                setSidebarOpen(false);
+                setViewingHome(true);
+              }}
+            >
+              <Home className="h-4 w-4 mr-2" />
+              Go to Home
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={onLeaveRoom}
+            >
+              Leave Room
+            </Button>
+          </div>
         </aside>
 
         {/* Messages Area */}
@@ -221,7 +288,10 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
                   <p>No messages yet. Say hello!</p>
                   {!isSynced && (
                     <p className="mt-2 text-sm">
-                      Remember to sync your game time in the sidebar!
+                      <span className="hidden lg:inline">Remember to sync your game time in the sidebar!</span>
+                      <span className="lg:hidden">
+                        Tap the <Menu className="inline h-4 w-4 mx-1" /> menu to sync your game time!
+                      </span>
                     </p>
                   )}
                 </div>
@@ -274,19 +344,27 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
 
             {!isSynced && messages.length > 0 && (
               <Alert>
-                <AlertDescription>
-                  Sync your game time in the sidebar to enable spoiler-free messaging
+                <AlertDescription className="flex items-center justify-between gap-2">
+                  <span className="text-sm">Sync your game time to enable spoiler-free messaging</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="lg:hidden flex-shrink-0"
+                    onClick={() => setSidebarOpen(true)}
+                  >
+                    Sync Now
+                  </Button>
                 </AlertDescription>
               </Alert>
             )}
 
             {showResyncReminder && (
               <Alert>
-                <AlertDescription className="flex items-center justify-between">
-                  <span>It's been a while since you synced. Is your game time still accurate?</span>
-                  <div className="flex gap-2">
+                <AlertDescription className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-sm">It's been a while since you synced. Is your game time still accurate?</span>
+                  <div className="flex gap-2 flex-shrink-0">
                     <Button size="sm" onClick={() => setShowSyncModal(true)}>
-                      Resync Now
+                      Resync
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setShowResyncReminder(false)}>
                       Dismiss

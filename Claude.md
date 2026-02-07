@@ -63,7 +63,7 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## Current State
 
-- **Phase**: Phase 10 Complete (Landing Page Redesign) ✅
+- **Phase**: V1 Shipping Prep (2026-02-06) ✅
 - **Tech stack**: React + Vite + Tailwind + Shadcn/UI (frontend), Node.js + Express + Socket.IO + Prisma (backend)
 - **Database**: Supabase PostgreSQL for persistence
 - **Authentication**: Google OAuth via Supabase Auth (optional - guests still supported)
@@ -79,6 +79,64 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - **Live URLs**:
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
+
+## ✅ V1 Shipping Prep - 2026-02-06
+
+**Goal:** Complete the remaining Shippable v1 Checklist items to prepare for real users.
+
+**What Was Done:**
+
+### Legal Documents
+- Created Privacy Policy page (`/privacy` route)
+- Created Terms of Service page (`/terms` route)
+- Added footer links to HomePage
+- Added `vercel.json` for client-side routing
+
+### Error Tracking
+- Integrated Sentry for frontend (React ErrorBoundary)
+- Integrated Sentry for backend (Express error handler)
+- Added environment variables: `VITE_SENTRY_DSN`, `SENTRY_DSN`
+
+### Mobile Responsiveness
+- Made ChatRoom sidebar collapsible (hidden on mobile with toggle button)
+- Added mobile sidebar overlay with proper transitions
+- Updated ChatRoom header for mobile (condensed elements)
+- Made HomePage join form responsive (stacks vertically on mobile)
+- Made TimeSync inputs responsive (flex instead of fixed widths)
+- Added mobile-specific UI hints (e.g., "tap menu to sync")
+
+### Structured Logging
+- Installed pino for JSON logging
+- Created `backend/services/logger.js`
+- Replaced all `console.log/error` with structured logger calls
+- Logs now include structured data (roomId, nickname, etc.)
+
+### Documentation
+- Created `docs/OPERATIONS.md` operational playbook
+
+**Key Files Added:**
+- `frontend/src/pages/PrivacyPolicy.jsx` - Privacy policy page
+- `frontend/src/pages/TermsOfService.jsx` - Terms of service page
+- `frontend/vercel.json` - Vercel routing config
+- `backend/services/logger.js` - Structured logging
+- `docs/OPERATIONS.md` - Operations playbook
+
+**Key Files Modified:**
+- `frontend/src/App.jsx` - Added routing for legal pages, Sentry
+- `frontend/src/main.jsx` - Sentry initialization
+- `frontend/src/components/HomePage.jsx` - Footer, responsive form
+- `frontend/src/components/ChatRoom.jsx` - Mobile responsive sidebar
+- `frontend/src/components/TimeSync.jsx` - Responsive inputs
+- `backend/server.js` - Sentry, structured logging
+- `backend/services/*.js` - Structured logging throughout
+
+**Remaining Manual Steps:**
+1. Set up Sentry project and add DSN to environment variables
+2. Set up UptimeRobot monitoring for health endpoints
+3. Enable Vercel Analytics in dashboard
+4. Submit for Google OAuth verification (after deploying legal pages)
+
+---
 
 ## ✅ Phase 10 Complete (Landing Page Redesign) - 2026-02-04
 
@@ -347,19 +405,19 @@ Before considering the app "shippable" for real users, address these items:
 - [x] **Better error handling** - Added retry logic for transient database errors
 
 ### Important (Should Fix)
-- [ ] **Mobile responsiveness** - Many users watch games on phones
-- [ ] **Google OAuth verification** - Remove "unverified app" warning (requires privacy policy + terms)
+- [x] **Mobile responsiveness** - Collapsible sidebar, responsive forms, mobile-friendly layout
+- [ ] **Google OAuth verification** - Remove "unverified app" warning (requires privacy policy + terms) - Submit to Google after deploying legal pages
 
 ### Operational (Need for Running a Business)
-- [ ] **Error tracking** - Set up Sentry or similar to catch production errors
-- [ ] **Monitoring** - Know when something breaks (uptime monitoring)
-- [ ] **Logging** - Structured logs for debugging production issues
-- [ ] **Operational playbook** - Document how to check logs, restart services, etc.
-- [ ] **Analytics** - Understand usage patterns (optional but helpful)
+- [x] **Error tracking** - Sentry integration for frontend and backend
+- [ ] **Monitoring** - Set up UptimeRobot or similar (manual step)
+- [x] **Logging** - Structured JSON logging with pino
+- [x] **Operational playbook** - Created docs/OPERATIONS.md
+- [ ] **Analytics** - Enable Vercel Analytics in dashboard (manual step)
 
 ### Legal (Required for OAuth/Business)
-- [ ] **Privacy Policy** - Required for Google OAuth verification
-- [ ] **Terms of Service** - Required for Google OAuth verification
+- [x] **Privacy Policy** - Created at /privacy route
+- [x] **Terms of Service** - Created at /terms route
 
 ---
 

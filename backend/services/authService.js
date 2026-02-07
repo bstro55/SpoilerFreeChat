@@ -13,6 +13,7 @@
 
 const { createRemoteJWKSet, jwtVerify } = require('jose');
 const prisma = require('./database');
+const logger = require('./logger');
 
 // Cache the JWKS fetcher (jose handles caching internally)
 let jwks = null;
@@ -72,13 +73,13 @@ async function verifyToken(token) {
     // Token is invalid, expired, or verification failed
     // This is normal for guests or expired sessions - not an error to log
     if (error.code === 'ERR_JWT_EXPIRED') {
-      console.log('Auth: Token expired');
+      logger.debug('Auth: Token expired');
     } else if (error.code === 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED') {
-      console.log('Auth: Invalid token signature');
+      logger.debug('Auth: Invalid token signature');
     }
     // For other errors, log them for debugging
     else if (process.env.NODE_ENV === 'development') {
-      console.log('Auth: Token verification failed:', error.code || error.message);
+      logger.debug('Auth: Token verification failed:', error.code || error.message);
     }
     return null;
   }

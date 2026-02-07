@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import useChatStore from './store/chatStore';
 import useAuthStore from './store/authStore';
 import useSocket from './hooks/useSocket';
 import HomePage from './components/HomePage';
 import ChatRoom from './components/ChatRoom';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import { Spinner } from './components/ui/spinner';
 
 /**
@@ -16,6 +18,33 @@ function App() {
   const { joinRoom, sendMessage, leaveRoom, syncGameTime } = useSocket();
   const { roomId, pendingAutoReconnect, viewingHome } = useChatStore();
   const { initialize, isLoading, profile } = useAuthStore();
+
+  // Simple path-based routing for legal pages
+  const [currentPage, setCurrentPage] = useState(() => {
+    const path = window.location.pathname;
+    if (path === '/privacy') return 'privacy';
+    if (path === '/terms') return 'terms';
+    return 'home';
+  });
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path === '/privacy') setCurrentPage('privacy');
+      else if (path === '/terms') setCurrentPage('terms');
+      else setCurrentPage('home');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Navigation helper
+  const navigateTo = (page) => {
+    const path = page === 'home' ? '/' : `/${page}`;
+    window.history.pushState({}, '', path);
+    setCurrentPage(page);
+  };
 
   // Initialize auth on mount
   useEffect(() => {
@@ -59,6 +88,14 @@ function App() {
     );
   }
 
+  // Handle legal pages first (these render regardless of room state)
+  if (currentPage === 'privacy') {
+    return <PrivacyPolicy onBack={() => navigateTo('home')} />;
+  }
+  if (currentPage === 'terms') {
+    return <TermsOfService onBack={() => navigateTo('home')} />;
+  }
+
   // Determine which view to show:
   // - No room: HomePage (has its own header)
   // - In room + viewingHome: HomePage (handles "Return to Room" internally)
@@ -68,7 +105,7 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {showHomePage ? (
-        <HomePage onJoin={joinRoom} />
+        <HomePage onJoin={joinRoom} onNavigate={navigateTo} />
       ) : (
         <ChatRoom
           onSendMessage={sendMessage}
