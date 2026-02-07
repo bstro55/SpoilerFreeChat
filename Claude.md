@@ -80,7 +80,7 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
 
-## ✅ V1 Shipping Prep - 2026-02-06
+## ✅ V1 Shipping Prep - 2026-02-07
 
 **Goal:** Complete the remaining Shippable v1 Checklist items to prepare for real users.
 
@@ -92,10 +92,11 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - Added footer links to HomePage
 - Added `vercel.json` for client-side routing
 
-### Error Tracking
+### Error Tracking (Sentry)
 - Integrated Sentry for frontend (React ErrorBoundary)
 - Integrated Sentry for backend (Express error handler)
-- Added environment variables: `VITE_SENTRY_DSN`, `SENTRY_DSN`
+- Added environment variables: `VITE_SENTRY_DSN` (Vercel), `SENTRY_DSN` (Koyeb)
+- Frontend Sentry tested and working in production
 
 ### Mobile Responsiveness
 - Made ChatRoom sidebar collapsible (hidden on mobile with toggle button)
@@ -110,6 +111,10 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - Created `backend/services/logger.js`
 - Replaced all `console.log/error` with structured logger calls
 - Logs now include structured data (roomId, nickname, etc.)
+
+### Monitoring & Analytics
+- UptimeRobot can be set up to monitor health endpoints
+- Vercel Analytics available (just enable in dashboard)
 
 ### Documentation
 - Created `docs/OPERATIONS.md` operational playbook
@@ -130,11 +135,81 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - `backend/server.js` - Sentry, structured logging
 - `backend/services/*.js` - Structured logging throughout
 
-**Remaining Manual Steps:**
-1. Set up Sentry project and add DSN to environment variables
-2. Set up UptimeRobot monitoring for health endpoints
-3. Enable Vercel Analytics in dashboard
-4. Submit for Google OAuth verification (after deploying legal pages)
+### Remaining Manual Steps
+
+**Already Completed:**
+- [x] Sentry frontend project created and DSN added to Vercel
+- [x] Legal pages deployed and accessible
+
+**Still To Do:**
+1. **Backend Sentry** - Add `SENTRY_DSN` environment variable to Koyeb
+2. **UptimeRobot** - Set up monitors for:
+   - Backend: `https://fresh-charin-brandonorg-fb132fcb.koyeb.app/health`
+   - Frontend: `https://spoiler-free-chat.vercel.app`
+3. **Vercel Analytics** - Enable in Vercel Dashboard → Analytics tab
+4. **Google OAuth Verification** - Submit after finalizing domain/branding (see below)
+
+---
+
+## 📋 Domain & Branding Change Checklist
+
+When you're ready to finalize your app name and custom domain, here's everything that needs to be updated:
+
+### 1. Domain Configuration
+
+**Vercel (Frontend):**
+- Add custom domain in Vercel Dashboard → Settings → Domains
+- Update any hardcoded URLs in code (search for `spoiler-free-chat.vercel.app`)
+
+**Supabase:**
+- Go to Authentication → URL Configuration
+- Update Site URL to new domain
+- Update Redirect URLs to include new domain
+
+**Google Cloud Console:**
+- Go to APIs & Services → Credentials → OAuth 2.0 Client
+- Add new domain to Authorized JavaScript origins
+- Add new domain to Authorized redirect URIs
+
+**Koyeb:**
+- Update `CORS_ORIGIN` environment variable to include new frontend domain
+
+### 2. Backend URL (If Changing)
+
+If you get a custom domain for the backend:
+- Update `VITE_SOCKET_URL` in Vercel environment variables
+- Update UptimeRobot monitors
+
+### 3. Branding/App Name
+
+**Code Updates:**
+- `frontend/src/pages/PrivacyPolicy.jsx` - App name references
+- `frontend/src/pages/TermsOfService.jsx` - App name references
+- `frontend/src/components/HomePage.jsx` - Hero section text
+- `frontend/index.html` - Page title
+
+**External Services:**
+- Google Cloud Console → OAuth consent screen → App name
+- Sentry project names (optional, cosmetic)
+- UptimeRobot monitor names (optional, cosmetic)
+
+### 4. Google OAuth Verification
+
+**Prerequisites:**
+- Final domain configured
+- Privacy policy accessible at new domain
+- Terms of service accessible at new domain
+- App logo (120x120 pixels)
+
+**Steps:**
+1. Go to Google Cloud Console → APIs & Services → OAuth consent screen
+2. Add Privacy Policy URL
+3. Add Terms of Service URL
+4. Upload app logo
+5. Click "Prepare for verification"
+6. Submit for review (takes 2-4 weeks)
+
+**Note:** The app works without verification - users just see an "unverified app" warning during Google sign-in
 
 ---
 
