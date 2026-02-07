@@ -84,6 +84,9 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 **Goal:** Improve navigation and room creation flows to make the app feel more professional.
 
+**Post-Phase Polish (2026-02-06):**
+- Enlarged and centered feature card icons on homepage (w-12→w-16, h-6→h-8)
+
 **What Was Done:**
 - New HomePage with hero section, feature cards, and professional landing experience
 - CreateRoomModal with room metadata (room name, teams, game date)
