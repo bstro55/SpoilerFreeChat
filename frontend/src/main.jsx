@@ -5,11 +5,7 @@ import './index.css'
 import App from './App.jsx'
 
 // Initialize Sentry for error tracking (only in production)
-// Expose Sentry globally for console testing
-window.Sentry = Sentry
-
 if (import.meta.env.VITE_SENTRY_DSN) {
-  console.log('[Sentry] Initializing with DSN:', import.meta.env.VITE_SENTRY_DSN.substring(0, 20) + '...')
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
     environment: import.meta.env.MODE,
@@ -18,8 +14,6 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     // Capture 10% of transactions for performance monitoring
     tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
   })
-} else {
-  console.log('[Sentry] No DSN found - Sentry not initialized')
 }
 
 createRoot(document.getElementById('root')).render(
