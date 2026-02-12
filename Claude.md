@@ -80,6 +80,24 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
 
+## ✅ Security Fix: Row Level Security (RLS) - 2026-02-12
+
+**Issue:** Supabase flagged all database tables as security vulnerabilities because Row Level Security was disabled. Without RLS, tables are exposed through the PostgREST API.
+
+**Analysis:** The app architecture was already secure in practice - the frontend only uses Supabase for authentication, and all data access goes through the backend via Prisma. However, RLS should still be enabled as defense-in-depth.
+
+**Fix Applied:**
+- Created Prisma migration to enable RLS on all 6 tables
+- Added "Deny all access via PostgREST" policies for `anon` and `authenticated` roles
+- Backend continues to work because Prisma uses the `postgres` role which bypasses RLS
+
+**Tables Protected:**
+- `User`, `Session`, `Room`, `Message`, `RecentRoom`, `_prisma_migrations`
+
+**Migration File:** `backend/prisma/migrations/20260212000000_enable_rls/migration.sql`
+
+---
+
 ## ✅ V1 Shipping Prep - 2026-02-07
 
 **Goal:** Complete the remaining Shippable v1 Checklist items to prepare for real users.
@@ -141,13 +159,13 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - [x] Sentry frontend project created and DSN added to Vercel
 - [x] Legal pages deployed and accessible
 
+**Also Completed (2026-02-12):**
+- [x] Backend Sentry - `SENTRY_DSN` added to Koyeb
+- [x] UptimeRobot - Monitors set up for backend health and frontend
+- [x] Vercel Analytics - Enabled in dashboard
+
 **Still To Do:**
-1. **Backend Sentry** - Add `SENTRY_DSN` environment variable to Koyeb
-2. **UptimeRobot** - Set up monitors for:
-   - Backend: `https://fresh-charin-brandonorg-fb132fcb.koyeb.app/health`
-   - Frontend: `https://spoiler-free-chat.vercel.app`
-3. **Vercel Analytics** - Enable in Vercel Dashboard → Analytics tab
-4. **Google OAuth Verification** - Submit after finalizing domain/branding (see below)
+1. **Google OAuth Verification** - Submit after finalizing domain/branding (see below)
 
 ---
 
@@ -439,6 +457,14 @@ Manual testing with multiple browser tabs:
 - Message reactions/emoji
 - Custom room codes (let creators choose their own code)
 
+### Sync Flow Improvements (Revisit)
+- **Better sync coordination** - Current flow requires users to manually input their game time. Consider improvements:
+  - Countdown timer ("Sync in 3, 2, 1...") so all users sync at the same moment
+  - "Ready" button system where room creator triggers sync for everyone
+  - Visual indicator showing when other users last synced
+  - Re-sync reminders if someone's been synced for a long time (drift correction)
+  - Guided onboarding explaining the importance of syncing at the same real-world moment
+
 ## Other Future Polish
 
 - **Google OAuth Verification**: Submit app to Google for verification to remove the "unverified app" warning during sign-in. Requires privacy policy and terms of service.
@@ -478,6 +504,7 @@ Before considering the app "shippable" for real users, address these items:
 - [x] **Prisma/Supabase connection stability** - Fixed with pgbouncer flag and retry logic
 - [x] **Reconnection robustness** - Added 10-second timeout with fallback to JoinRoom
 - [x] **Better error handling** - Added retry logic for transient database errors
+- [x] **Database RLS security** - Enabled Row Level Security on all tables (2026-02-12)
 
 ### Important (Should Fix)
 - [x] **Mobile responsiveness** - Collapsible sidebar, responsive forms, mobile-friendly layout
@@ -485,10 +512,10 @@ Before considering the app "shippable" for real users, address these items:
 
 ### Operational (Need for Running a Business)
 - [x] **Error tracking** - Sentry integration for frontend and backend
-- [ ] **Monitoring** - Set up UptimeRobot or similar (manual step)
+- [x] **Monitoring** - UptimeRobot configured for backend health and frontend
 - [x] **Logging** - Structured JSON logging with pino
 - [x] **Operational playbook** - Created docs/OPERATIONS.md
-- [ ] **Analytics** - Enable Vercel Analytics in dashboard (manual step)
+- [x] **Analytics** - Vercel Analytics enabled
 
 ### Legal (Required for OAuth/Business)
 - [x] **Privacy Policy** - Created at /privacy route
