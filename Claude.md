@@ -80,6 +80,21 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
 
+## ✅ Bug Fix: Rate Limiter TypeError - 2026-02-14
+
+**Issue:** Sentry reported `TypeError: response.status is not a function` in `express-rate-limit` when the connection rate limit was exceeded.
+
+**Root Cause:** The `express-rate-limit` middleware was applied to Socket.IO's engine layer via `io.engine.use()`. When the rate limit triggered, the default handler called `response.status()`, but Socket.IO's engine passes raw Node.js `ServerResponse` objects which don't have the `.status()` method (that's Express-specific).
+
+**Fix Applied:**
+- Added a custom `handler` option to the rate limiter configuration
+- Handler uses `res.writeHead(429, ...)` and `res.end()` instead of Express methods
+- Rate limiting still works correctly, now with proper Node.js compatibility
+
+**File Modified:** `backend/server.js` (lines 83-92)
+
+---
+
 ## ✅ Security Fix: Row Level Security (RLS) - 2026-02-12
 
 **Issue:** Supabase flagged all database tables as security vulnerabilities because Row Level Security was disabled. Without RLS, tables are exposed through the PostgREST API.
