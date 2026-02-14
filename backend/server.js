@@ -82,7 +82,18 @@ const connectionLimiter = rateLimit({
            req.socket?.remoteAddress ||
            'unknown';
   },
-  message: { message: 'Too many connections from this IP, please try again later' }
+  // Custom handler for raw Node.js ServerResponse (not Express Response)
+  // io.engine.use() passes raw Node HTTP objects, which don't have .status()
+  handler: (req, res) => {
+    const message = JSON.stringify({
+      message: 'Too many connections from this IP, please try again later'
+    });
+    res.writeHead(429, {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(message)
+    });
+    res.end(message);
+  }
 });
 
 // Apply rate limiter to Socket.IO's underlying HTTP engine
