@@ -80,6 +80,34 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
 
+## ✅ UI Polish: Pre-Launch Improvements - 2026-02-15
+
+**Goal:** Polish the UI before official v1 launch.
+
+**What Was Done:**
+
+### Homepage Updates
+- Updated tagline from "Watch Together, Stay Safe" to "Talk Sports, Spoiler Free"
+- Redesigned feature cards section:
+  - Larger icons (w-20/h-20 containers, h-10/w-10 icons)
+  - Larger title text (text-lg)
+  - Translucent container with backdrop blur effect
+  - Removed individual card borders for cleaner look
+
+### ChatRoom Improvements
+- Added room code display with copy-to-clipboard button in sidebar
+- Compacted sidebar spacing for better mobile fit:
+  - Reduced sidebar width from w-72 to w-64
+  - Tightened padding throughout (p-4 → p-3)
+  - More compact TimeSync and "In This Room" cards
+
+**Files Modified:**
+- `frontend/src/components/HomePage.jsx` - Tagline, feature cards redesign
+- `frontend/src/components/ChatRoom.jsx` - Room code display, sidebar spacing
+- `frontend/src/components/TimeSync.jsx` - Compact card styling
+
+---
+
 ## ✅ Sync Improvement: Late Joiner Protection & User Education - 2026-02-14
 
 **Goal:** Solidify the core sync logic to reduce spoiler leaks and help users understand the system.
