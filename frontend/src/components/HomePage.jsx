@@ -25,13 +25,13 @@ import { getAllSports, DEFAULT_SPORT, getSportConfig } from '../lib/sportConfig'
  */
 function FeatureCard({ icon: Icon, title, description, color }) {
   return (
-    <Card className="card-hover p-6 flex flex-col items-center text-center">
-      <div className={`flex items-center justify-center w-16 h-16 rounded-full mb-4 ${color}`}>
-        <Icon className="h-8 w-8" />
+    <div className="flex flex-col items-center text-center p-6">
+      <div className={`flex items-center justify-center w-20 h-20 rounded-full mb-4 ${color}`}>
+        <Icon className="h-10 w-10" />
       </div>
-      <h3 className="font-semibold mb-2">{title}</h3>
+      <h3 className="font-semibold text-lg mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground">{description}</p>
-    </Card>
+    </div>
   );
 }
 
@@ -201,8 +201,8 @@ function HomePage({ onJoin, onNavigate }) {
         </Badge>
 
         <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
-          Watch Together,{' '}
-          <span className="text-gradient-green">Stay Safe</span>
+          Talk Sports,{' '}
+          <span className="text-gradient-green">Spoiler Free</span>
         </h2>
 
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
@@ -217,26 +217,28 @@ function HomePage({ onJoin, onNavigate }) {
       </section>
 
       {/* Feature Cards */}
-      <section className="max-w-5xl mx-auto px-4 -mt-8 mb-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FeatureCard
-            icon={Clock}
-            title="Time-Synced"
-            description="Messages appear when you reach that game moment"
-            color="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
-          />
-          <FeatureCard
-            icon={Users}
-            title="Group Chat"
-            description="Create rooms for any game with friends"
-            color="bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400"
-          />
-          <FeatureCard
-            icon={Zap}
-            title="Real-Time"
-            description="Instant messaging with smart delay logic"
-            color="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
-          />
+      <section className="max-w-5xl mx-auto px-4 -mt-6 mb-12">
+        <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl py-6 px-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FeatureCard
+              icon={Clock}
+              title="Time-Synced"
+              description="Messages appear when you reach that game moment"
+              color="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
+            />
+            <FeatureCard
+              icon={Users}
+              title="Group Chat"
+              description="Create rooms for any game with friends"
+              color="bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400"
+            />
+            <FeatureCard
+              icon={Zap}
+              title="Real-Time"
+              description="Instant messaging with smart delay logic"
+              color="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+            />
+          </div>
         </div>
       </section>
 

@@ -97,14 +97,14 @@ function TimeSync({ onSync }) {
 
   return (
     <Card>
-      <CardHeader className="py-3 px-4">
+      <CardHeader className="py-2 px-3">
         <CardTitle className="text-sm">Sync Game Time</CardTitle>
         <CardDescription className="text-xs">
           Enter the time shown on your broadcast
         </CardDescription>
       </CardHeader>
-      <CardContent className="py-2 px-4 space-y-3">
-        <form onSubmit={handleSync} className="space-y-3">
+      <CardContent className="py-2 px-3 space-y-2">
+        <form onSubmit={handleSync} className="space-y-2">
           <div className="flex items-end gap-2">
             {/* Period Selector - Dynamic based on sport */}
             <div className="space-y-1 flex-1 min-w-0">
@@ -171,23 +171,22 @@ function TimeSync({ onSync }) {
         </form>
 
         {isSynced && (
-          <div className="space-y-2 pt-2 border-t text-sm">
+          <div className="space-y-1.5 pt-2 border-t text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Game time:</span>
-              <span className="font-medium">{displayGameTime}</span>
+              <span className="text-muted-foreground text-xs">Game time:</span>
+              <span className="font-medium text-xs">{displayGameTime}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Your delay:</span>
-              <Badge variant={isBaseline ? 'default' : 'secondary'}>
+              <span className="text-muted-foreground text-xs">Your delay:</span>
+              <Badge variant={isBaseline ? 'default' : 'secondary'} className="text-xs h-5">
                 {offsetFormatted}
                 {isBaseline && ' (Live)'}
               </Badge>
             </div>
-            {/* Explain what the offset means for message delivery */}
-            <p className="text-xs text-muted-foreground pt-1">
+            <p className="text-xs text-muted-foreground">
               {isBaseline
                 ? "You're the fastest viewer - messages arrive instantly."
-                : `Messages will be held for ${offsetFormatted} so you don't get spoiled.`}
+                : `Messages held for ${offsetFormatted} to avoid spoilers.`}
             </p>
           </div>
         )}

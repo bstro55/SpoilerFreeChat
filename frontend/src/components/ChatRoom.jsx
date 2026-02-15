@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Home, Menu, X, Clock } from 'lucide-react';
+import { Home, Menu, X, Clock, Copy, Check } from 'lucide-react';
 import { getSportConfig } from '../lib/sportConfig';
 
 /**
@@ -41,6 +41,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   const [pendingMessage, setPendingMessage] = useState('');
   const [showResyncReminder, setShowResyncReminder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [, setTick] = useState(0);  // Force re-render for relative time updates
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -136,6 +137,16 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
     });
   };
 
+  const copyRoomCode = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy room code:', err);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-background overflow-hidden">
       {/* Connection Status Banner */}
@@ -221,34 +232,60 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
           fixed lg:relative
           inset-y-0 left-0
           z-50 lg:z-auto
-          w-72
+          w-64
           border-r border-border bg-muted
           flex flex-col overflow-hidden
           transition-transform duration-200 ease-in-out
           lg:transition-none
         `}>
           {/* Mobile sidebar header */}
-          <div className="flex items-center justify-between p-4 border-b border-border lg:hidden">
-            <span className="font-semibold">Game Settings</span>
+          <div className="flex items-center justify-between p-3 border-b border-border lg:hidden">
+            <span className="font-semibold text-sm">Game Settings</span>
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0"
+              className="h-7 w-7 p-0"
               onClick={() => setSidebarOpen(false)}
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="p-4 flex-1 overflow-y-auto space-y-4">
+          <div className="p-3 flex-1 overflow-y-auto space-y-3">
+            {/* Room Code */}
+            <div className="flex items-center justify-between px-1">
+              <div>
+                <p className="text-xs text-muted-foreground">Room Code</p>
+                <code className="font-mono text-sm font-semibold">{roomId}</code>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 gap-1"
+                onClick={copyRoomCode}
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-3 w-3 text-green-500" />
+                    <span className="text-xs">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3 w-3" />
+                    <span className="text-xs">Copy</span>
+                  </>
+                )}
+              </Button>
+            </div>
+
             <TimeSync onSync={onSyncGameTime} />
 
             <Card>
-              <CardHeader className="py-3 px-4">
+              <CardHeader className="py-2 px-3">
                 <CardTitle className="text-sm">In This Room</CardTitle>
               </CardHeader>
-              <CardContent className="py-2 px-4">
-                <ul className="space-y-3">
+              <CardContent className="py-2 px-3">
+                <ul className="space-y-2">
                   {users.map((user) => (
                     <li
                       key={user.id}
@@ -284,11 +321,11 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
           </div>
 
           {/* Mobile sidebar footer with Leave button */}
-          <div className="p-4 border-t border-border lg:hidden space-y-2">
+          <div className="p-3 border-t border-border lg:hidden space-y-2">
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-start"
+              className="w-full justify-start h-8"
               onClick={() => {
                 setSidebarOpen(false);
                 setViewingHome(true);
@@ -300,7 +337,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
             <Button
               variant="outline"
               size="sm"
-              className="w-full"
+              className="w-full h-8"
               onClick={onLeaveRoom}
             >
               Leave Room
