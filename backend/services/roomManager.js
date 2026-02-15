@@ -138,7 +138,8 @@ function addUser(roomId, socketId, nickname, sessionId = null, restoredGameTime 
       seconds: restoredGameTime.seconds
     } : null,
     elapsedSeconds: restoredGameTime ? restoredGameTime.elapsedSeconds : null,
-    offset: 0  // Will be recalculated if gameTime is restored
+    offset: 0,  // Will be recalculated if gameTime is restored
+    syncedAt: restoredGameTime ? Date.now() : null  // Track when user last synced
   };
 
   room.users.set(socketId, user);
@@ -235,6 +236,9 @@ function updateUserGameTime(roomId, socketId, period, minutes, seconds) {
   const elapsedSeconds = timeUtils.gameTimeToElapsedSeconds(period, minutes, seconds, sportType);
   user.elapsedSeconds = elapsedSeconds;
 
+  // Track when user synced (for sync visibility feature)
+  user.syncedAt = Date.now();
+
   // Get display format for logging
   const displayTime = timeUtils.elapsedSecondsToGameTime(elapsedSeconds, sportType);
 
@@ -290,6 +294,27 @@ function hasUserSynced(roomId, socketId) {
   if (!room) return false;
   const user = room.users.get(socketId);
   return user && user.gameTime !== null;
+}
+
+/**
+ * Get the maximum offset in a room (for late joiner protection).
+ * Returns the largest delay among synced users.
+ * If no users are synced, returns 0.
+ *
+ * @param {string} roomId - The room identifier
+ * @returns {number} Maximum offset in milliseconds
+ */
+function getMaxRoomOffset(roomId) {
+  const room = rooms.get(roomId);
+  if (!room) return 0;
+
+  let maxOffset = 0;
+  for (const user of room.users.values()) {
+    if (user.gameTime !== null && user.offset > maxOffset) {
+      maxOffset = user.offset;
+    }
+  }
+  return maxOffset;
 }
 
 /**
@@ -351,7 +376,8 @@ function getRoomUsers(roomId) {
     isSynced: user.gameTime !== null,
     gameTime: user.gameTime,
     offset: user.offset,
-    offsetFormatted: timeUtils.formatOffset(user.offset)
+    offsetFormatted: timeUtils.formatOffset(user.offset),
+    syncedAt: user.syncedAt  // When user last synced (for sync visibility)
   }));
 }
 
@@ -466,6 +492,7 @@ module.exports = {
   getUserOffset,
   hasUserSynced,
   recalculateOffsets,
+  getMaxRoomOffset,  // Late joiner protection (Phase: Sync Improvement)
   // Sport type (Phase 8)
   getRoomSportType,
   // Constants

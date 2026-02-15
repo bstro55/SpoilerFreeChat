@@ -351,11 +351,14 @@ io.on('connection', async (socket) => {
       const sportConfig = getSportConfig(effectiveSportType);
 
       // Send confirmation to the joining user
+      // Don't send message history to new unsynced users (late joiner protection)
+      // They'll receive messages when they sync
+      const shouldSendMessages = isReconnect && restoredGameTime;
       socket.emit('joined-room', {
         roomId: sanitizedRoomId,
         nickname: sanitizedNickname,
         users,
-        messages,
+        messages: shouldSendMessages ? messages : [],  // Only send history if reconnecting with sync
         sessionId: session.id,  // Send session ID for client storage
         isReconnect,
         syncState,  // Restored sync state (null if new user)
@@ -409,6 +412,9 @@ io.on('connection', async (socket) => {
         return;
       }
 
+      // Check if this is user's first sync (for late joiner message history)
+      const wasUnsynced = !roomManager.hasUserSynced(roomId, socket.id);
+
       // Update user's game time and calculate offset (uses room's sport type)
       const result = roomManager.updateUserGameTime(
         roomId,
@@ -443,6 +449,16 @@ io.on('connection', async (socket) => {
         offsetFormatted: result.offsetFormatted,
         isBaseline: result.isBaseline
       });
+
+      // If this was user's first sync, send them the message history
+      // (Late joiner protection: we withheld messages until they synced)
+      if (wasUnsynced) {
+        const messages = roomManager.getRoomMessages(roomId);
+        if (messages.length > 0) {
+          socket.emit('message-history', { messages });
+          logger.debug({ nickname, messageCount: messages.length }, 'Sent message history to newly synced user');
+        }
+      }
 
       // Notify others that this user has synced (update their user list)
       socket.to(roomId).emit('user-synced', {
@@ -548,10 +564,18 @@ io.on('connection', async (socket) => {
         continue;
       }
 
-      // Users who haven't synced get messages immediately
-      // (we don't know their offset, so we can't delay)
+      // Users who haven't synced: use conservative delay (max room offset)
+      // This prevents late joiners from getting instant spoilers
       if (!roomManager.hasUserSynced(roomId, recipientSocketId)) {
-        messageQueue.deliverImmediately(recipientSocketId, message);
+        const maxOffset = roomManager.getMaxRoomOffset(roomId);
+        if (maxOffset > 0) {
+          // Queue with max room delay to protect from spoilers
+          const deliverAt = now + maxOffset;
+          messageQueue.queueMessage(recipientSocketId, message, deliverAt);
+        } else {
+          // No synced users yet, deliver immediately
+          messageQueue.deliverImmediately(recipientSocketId, message);
+        }
         continue;
       }
 

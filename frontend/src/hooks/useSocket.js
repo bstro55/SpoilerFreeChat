@@ -285,6 +285,12 @@ export function useSocket() {
       addMessage(message);
     });
 
+    // Message history (sent when late joiner syncs for the first time)
+    socket.on('message-history', (data) => {
+      console.log('Received message history:', data.messages.length, 'messages');
+      setMessages(data.messages);
+    });
+
     // Phase 2: Game time sync events (updated Phase 8 for multi-sport)
     socket.on('sync-confirmed', (data) => {
       console.log('Game time sync confirmed:', data);
@@ -298,6 +304,13 @@ export function useSocket() {
         offset: data.offset,
         offsetFormatted: data.offsetFormatted,
         isBaseline: data.isBaseline
+      });
+      // Also update own entry in users list (user-synced only goes to others)
+      updateUserSync(socket.id, {
+        isSynced: true,
+        offset: data.offset,
+        offsetFormatted: data.offsetFormatted,
+        syncedAt: Date.now()
       });
     });
 

@@ -63,7 +63,7 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## Current State
 
-- **Phase**: V1 Shipping Prep (2026-02-06) ✅
+- **Phase**: Sync Improvements (2026-02-14) ✅
 - **Tech stack**: React + Vite + Tailwind + Shadcn/UI (frontend), Node.js + Express + Socket.IO + Prisma (backend)
 - **Database**: Supabase PostgreSQL for persistence
 - **Authentication**: Google OAuth via Supabase Auth (optional - guests still supported)
@@ -79,6 +79,68 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - **Live URLs**:
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
+
+## ✅ Sync Improvement: Late Joiner Protection & User Education - 2026-02-14
+
+**Goal:** Solidify the core sync logic to reduce spoiler leaks and help users understand the system.
+
+**Problem Addressed:**
+- Late joiners received messages immediately (guaranteed spoilers)
+- Users didn't understand WHY or WHEN to sync
+- No visibility into when other users last synced
+- Mobile sync was hard to discover
+
+**What Was Done:**
+
+### Phase 1: Late Joiner Protection (Backend)
+- Added `getMaxRoomOffset()` helper to `roomManager.js`
+- Changed `server.js` message delivery: unsynced users now receive NEW messages with the room's maximum offset as a conservative delay
+- Message history is NOT sent to new users on join - they see "No messages yet" until they sync
+- When user syncs for the first time, they receive message history via `message-history` event
+- **Impact:** Late joiners no longer see any spoilers before syncing
+
+### Phase 2: Pre-Sync Education (Frontend)
+- Added educational modal in `SyncModal.jsx` before first sync
+- Explains broadcast delays and the 3-step process
+- Includes tip about coordinating sync timing with friends
+
+### Phase 3: Improved Offset Display (Frontend)
+- Updated `TimeSync.jsx` to explain offset meaning
+- Baseline users see: "You're the fastest viewer - messages arrive instantly."
+- Delayed users see: "Messages will be held for X seconds so you don't get spoiled."
+
+### Phase 4: Sync Timestamp Visibility (Full Stack)
+- Added `syncedAt` timestamp tracking in `roomManager.js`
+- User list in `ChatRoom.jsx` now shows "synced just now", "synced 2m ago", etc.
+- Fixed bug where user's OWN sync status showed "Not synced" after syncing (now updates own entry in users list via `updateUserSync` in `useSocket.js`)
+- Creates social visibility around sync freshness
+
+### Phase 5: Mobile Sync FAB (Frontend)
+- Added floating "Sync Now" button for unsynced mobile users in `ChatRoom.jsx`
+- More prominent than previous "tap menu to sync" hint
+
+**Files Modified:**
+- `backend/server.js` - Late joiner message queueing, message history on first sync
+- `backend/services/roomManager.js` - `getMaxRoomOffset()`, `syncedAt` tracking
+- `frontend/src/components/SyncModal.jsx` - Education modal
+- `frontend/src/components/TimeSync.jsx` - Offset explanation
+- `frontend/src/components/ChatRoom.jsx` - Sync timestamps, mobile FAB, relative time updates
+- `frontend/src/hooks/useSocket.js` - Handle `message-history` event, update own sync status
+
+**Testing Completed:**
+- Late joiner scenario: 3rd user joins, sees no messages, syncs, then receives history
+- Education modal appears before first sync
+- Offset explanation displays correctly after syncing
+- User's own sync status updates in "In This Room" list
+- Sync timestamps show "synced just now", "synced Xm ago", etc.
+- Mobile FAB visible for unsynced users (verified via browser resize)
+
+**Future Enhancements (Not Yet Implemented):**
+- Countdown sync ("Sync in 3, 2, 1...") for coordinated group sync
+- Drift detection to auto-prompt resyncs when accuracy degrades
+- Game clock API integration (expensive, for later scale)
+
+---
 
 ## ✅ Bug Fix: Rate Limiter TypeError - 2026-02-14
 

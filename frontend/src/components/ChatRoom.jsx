@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Home, Menu, X } from 'lucide-react';
+import { Home, Menu, X, Clock } from 'lucide-react';
 import { getSportConfig } from '../lib/sportConfig';
 
 /**
@@ -21,14 +21,35 @@ import { getSportConfig } from '../lib/sportConfig';
 const RESYNC_REMINDER_MS = 20 * 60 * 1000;
 const RESYNC_CHECK_INTERVAL_MS = 60 * 1000;
 
+/**
+ * Format a timestamp as relative time (e.g., "just now", "2m ago")
+ */
+function formatRelativeSyncTime(timestamp) {
+  if (!timestamp) return null;
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 30) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ago`;
+}
+
 function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   const [inputValue, setInputValue] = useState('');
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [pendingMessage, setPendingMessage] = useState('');
   const [showResyncReminder, setShowResyncReminder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [, setTick] = useState(0);  // Force re-render for relative time updates
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Update relative sync times every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const {
     roomId,
@@ -227,26 +248,34 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
                 <CardTitle className="text-sm">In This Room</CardTitle>
               </CardHeader>
               <CardContent className="py-2 px-4">
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {users.map((user) => (
                     <li
                       key={user.id}
-                      className={`flex items-center justify-between text-sm ${
+                      className={`text-sm ${
                         user.nickname === nickname ? 'font-medium' : ''
                       }`}
                     >
-                      <span>
-                        {user.nickname}
-                        {user.nickname === nickname && (
-                          <span className="text-muted-foreground"> (you)</span>
-                        )}
-                      </span>
-                      <Badge
-                        variant={user.isSynced ? 'default' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {user.isSynced ? user.offsetFormatted : 'Not synced'}
-                      </Badge>
+                      <div className="flex items-center justify-between">
+                        <span className="truncate">
+                          {user.nickname}
+                          {user.nickname === nickname && (
+                            <span className="text-muted-foreground"> (you)</span>
+                          )}
+                        </span>
+                        <Badge
+                          variant={user.isSynced ? 'default' : 'secondary'}
+                          className="text-xs flex-shrink-0 ml-2"
+                        >
+                          {user.isSynced ? user.offsetFormatted : 'Not synced'}
+                        </Badge>
+                      </div>
+                      {/* Show when user last synced */}
+                      {user.isSynced && user.syncedAt && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          synced {formatRelativeSyncTime(user.syncedAt)}
+                        </p>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -409,6 +438,20 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
           </form>
         </main>
       </div>
+
+      {/* Mobile Floating Sync Button - shown for unsynced users on mobile */}
+      {!isSynced && (
+        <div className="fixed bottom-24 right-4 lg:hidden z-30">
+          <Button
+            size="lg"
+            className="rounded-full shadow-lg h-14 px-5 gap-2"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Clock className="h-5 w-5" />
+            <span>Sync Now</span>
+          </Button>
+        </div>
+      )}
 
       <SyncModal
         isOpen={showSyncModal}

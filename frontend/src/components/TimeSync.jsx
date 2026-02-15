@@ -171,7 +171,7 @@ function TimeSync({ onSync }) {
         </form>
 
         {isSynced && (
-          <div className="space-y-1 pt-2 border-t text-sm">
+          <div className="space-y-2 pt-2 border-t text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Game time:</span>
               <span className="font-medium">{displayGameTime}</span>
@@ -180,9 +180,15 @@ function TimeSync({ onSync }) {
               <span className="text-muted-foreground">Your delay:</span>
               <Badge variant={isBaseline ? 'default' : 'secondary'}>
                 {offsetFormatted}
-                {isBaseline && ' (Baseline)'}
+                {isBaseline && ' (Live)'}
               </Badge>
             </div>
+            {/* Explain what the offset means for message delivery */}
+            <p className="text-xs text-muted-foreground pt-1">
+              {isBaseline
+                ? "You're the fastest viewer - messages arrive instantly."
+                : `Messages will be held for ${offsetFormatted} so you don't get spoiled.`}
+            </p>
           </div>
         )}
 
