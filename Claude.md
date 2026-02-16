@@ -63,7 +63,7 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## Current State
 
-- **Phase**: Sync Improvements (2026-02-14) ✅
+- **Phase**: Security Hardening (2026-02-15) ✅
 - **Tech stack**: React + Vite + Tailwind + Shadcn/UI (frontend), Node.js + Express + Socket.IO + Prisma (backend)
 - **Database**: Supabase PostgreSQL for persistence
 - **Authentication**: Google OAuth via Supabase Auth (optional - guests still supported)
@@ -75,10 +75,53 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - **Recent rooms**: Quick rejoin feature with sport type display
 - **UI**: Vibrant teal/cyan theme with proper light/dark mode support
 - **Navigation**: Home button, Create vs Join room flows, shareable room codes
-- **Security**: Rate limiting, input validation, XSS prevention, JWT verification
+- **Security**: Rate limiting (connections, messages, join attempts), input validation, XSS prevention, JWT verification, request body limits, room membership validation
 - **Live URLs**:
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
+
+## ✅ Security Hardening: Pre-Launch Audit - 2026-02-15
+
+**Goal:** Comprehensive security audit and hardening before v1 public launch.
+
+**Security Audit Findings:** The app already had good security fundamentals (JWT verification, input validation, XSS prevention, rate limiting, RLS). The audit identified 3 medium-severity defense-in-depth improvements.
+
+**What Was Done:**
+
+### Request Body Size Limits
+- Added `limit: '10kb'` to `express.json()` middleware (prevents memory exhaustion DoS)
+- Added `maxHttpBufferSize: 1e5` (100KB) to Socket.IO configuration
+
+### Room Code Brute Force Protection
+- Added `checkJoinRateLimit()` function to rate limiter service
+- Limits join attempts to 10 per minute per IP address
+- Prevents room code enumeration attacks
+- Applied to `join-room` socket event handler
+
+### Socket Event Room Membership Validation
+- Added `validateRoomMembership()` helper function
+- Verifies socket is actually in the room manager before processing events
+- Applied to `sync-game-time` and `send-message` handlers
+- Prevents event spoofing if room state gets out of sync
+
+### Dependency Vulnerability Fix
+- Ran `npm audit fix` to resolve low-severity `qs` package vulnerability
+- Now shows 0 vulnerabilities
+
+**Files Modified:**
+- `backend/server.js` - Body limits, Socket.IO limits, join rate limiting, membership validation
+- `backend/services/rateLimiter.js` - Added `checkJoinRateLimit()` and `clearJoinAttempts()`
+- `backend/package-lock.json` - Updated qs dependency
+
+**Security Audit Summary:**
+- **Authentication**: Strong (JWT via JWKS, proper issuer/audience validation)
+- **Input Validation**: Strong (whitelist patterns, HTML escaping, profanity filter)
+- **XSS Prevention**: Strong (no dangerouslySetInnerHTML, React auto-escaping)
+- **Rate Limiting**: Now comprehensive (connections, messages, AND join attempts)
+- **Database**: Strong (RLS enabled, Prisma parameterized queries)
+- **Headers**: Adequate (Helmet defaults enabled)
+
+---
 
 ## ✅ UI Polish: Pre-Launch Improvements - 2026-02-15
 
