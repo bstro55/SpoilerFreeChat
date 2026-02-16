@@ -50,14 +50,15 @@ app.use(cors({
   origin: CORS_ORIGIN,
   methods: ['GET', 'POST', 'PATCH', 'OPTIONS']
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10kb' })); // Limit body size to prevent memory exhaustion
 
 // Initialize Socket.IO with CORS configuration
 const io = new Server(server, {
   cors: {
     origin: CORS_ORIGIN,
     methods: ['GET', 'POST']
-  }
+  },
+  maxHttpBufferSize: 1e5 // 100KB max for Socket.IO packets (prevents memory exhaustion)
 });
 
 // Connection rate limiting per IP
@@ -184,6 +185,38 @@ app.get('/api/user/recent-rooms', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * Validate that a socket is an active member of its claimed room
+ * Prevents event spoofing if room manager state gets out of sync
+ * @param {Socket} socket - The socket to validate
+ * @returns {Object} { valid: boolean, error?: string, user?: Object }
+ */
+function validateRoomMembership(socket) {
+  const { roomId, nickname } = socket;
+
+  if (!roomId || !nickname) {
+    return { valid: false, error: 'You must join a room first' };
+  }
+
+  // Verify socket is actually in the room manager
+  const user = roomManager.getUser(roomId, socket.id);
+  if (!user) {
+    // Socket claims to be in a room but isn't in room manager
+    logger.warn({ socketId: socket.id, roomId, nickname },
+      'Socket claims room membership but not in room manager');
+
+    // Clean up stale socket state
+    socket.roomId = null;
+    socket.nickname = null;
+    socket.sessionId = null;
+    socket.sportType = null;
+
+    return { valid: false, error: 'Session expired. Please rejoin the room.' };
+  }
+
+  return { valid: true, user };
+}
+
 // Socket.IO connection handling
 io.on('connection', async (socket) => {
   logger.info({ socketId: socket.id }, 'User connected');
@@ -206,6 +239,17 @@ io.on('connection', async (socket) => {
   // Handle joining a room (now async for database operations)
   socket.on('join-room', async (data) => {
     try {
+      // Rate limit join attempts per IP (prevents room code enumeration)
+      const ip = socket.handshake.headers['x-forwarded-for']?.split(',')[0]?.trim()
+               || socket.handshake.address;
+      const joinCheck = rateLimiter.checkJoinRateLimit(ip);
+      if (!joinCheck.allowed) {
+        socket.emit('error', {
+          message: `Too many room join attempts. Try again in ${joinCheck.retryAfter} seconds.`
+        });
+        return;
+      }
+
       const { roomId, nickname, sessionId: clientSessionId, sportType, roomName, teams, gameDate } = data;
 
       // Validate and sanitize room ID
@@ -398,6 +442,13 @@ io.on('connection', async (socket) => {
   // Handle game time synchronization
   socket.on('sync-game-time', async (data) => {
     try {
+      // Validate socket is still a valid room member
+      const memberCheck = validateRoomMembership(socket);
+      if (!memberCheck.valid) {
+        socket.emit('error', { message: memberCheck.error });
+        return;
+      }
+
       // Accept both 'period' (new) and 'quarter' (backwards compat) from client
       const period = data.period ?? data.quarter;
       const { minutes, seconds } = data;
@@ -405,12 +456,6 @@ io.on('connection', async (socket) => {
       const nickname = socket.nickname;
       const sessionId = socket.sessionId;
       const sportType = socket.sportType || DEFAULT_SPORT;
-
-      // Validate user is in a room
-      if (!roomId || !nickname) {
-        socket.emit('error', { message: 'You must join a room first' });
-        return;
-      }
 
       // Check if this is user's first sync (for late joiner message history)
       const wasUnsynced = !roomManager.hasUserSynced(roomId, socket.id);
@@ -508,16 +553,17 @@ io.on('connection', async (socket) => {
 
   // Handle chat messages
   socket.on('send-message', (data) => {
+    // Validate socket is still a valid room member
+    const memberCheck = validateRoomMembership(socket);
+    if (!memberCheck.valid) {
+      socket.emit('error', { message: memberCheck.error });
+      return;
+    }
+
     const { content } = data;
     const roomId = socket.roomId;
     const nickname = socket.nickname;
     const sessionId = socket.sessionId;
-
-    // Validate user is in a room
-    if (!roomId || !nickname) {
-      socket.emit('error', { message: 'You must join a room first' });
-      return;
-    }
 
     // Validate and sanitize message content
     const messageValidation = validation.validateMessage(content);

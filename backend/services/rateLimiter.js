@@ -16,6 +16,11 @@ const WINDOW_MS = 60 * 1000;    // 1 minute window
 // Map of socketId -> array of message timestamps
 const messageTimes = new Map();
 
+// Join room rate limiting (per IP to prevent room enumeration)
+const MAX_JOIN_ATTEMPTS = 10;   // 10 join attempts per window
+const JOIN_WINDOW_MS = 60 * 1000; // 1 minute window
+const joinAttempts = new Map(); // Map of IP -> array of attempt timestamps
+
 /**
  * Check if a user can send a message (and record the attempt if allowed)
  * @param {string} socketId - The user's socket ID
@@ -80,11 +85,56 @@ function getStatus(socketId) {
   };
 }
 
+/**
+ * Check if an IP can attempt to join a room (prevents room code enumeration)
+ * @param {string} ip - The client's IP address
+ * @returns {Object} { allowed: boolean, retryAfter?: number }
+ */
+function checkJoinRateLimit(ip) {
+  const now = Date.now();
+  const windowStart = now - JOIN_WINDOW_MS;
+
+  // Get existing timestamps for this IP
+  let attempts = joinAttempts.get(ip) || [];
+
+  // Filter out timestamps outside the current window
+  attempts = attempts.filter(time => time > windowStart);
+
+  // Check if IP has exceeded the limit
+  if (attempts.length >= MAX_JOIN_ATTEMPTS) {
+    const oldestAttempt = attempts[0];
+    const retryAfter = Math.ceil((oldestAttempt + JOIN_WINDOW_MS - now) / 1000);
+
+    return {
+      allowed: false,
+      retryAfter // seconds until IP can try again
+    };
+  }
+
+  // Allow the attempt and record the timestamp
+  attempts.push(now);
+  joinAttempts.set(ip, attempts);
+
+  return { allowed: true };
+}
+
+/**
+ * Clear join attempt data for an IP (optional cleanup)
+ * @param {string} ip - The client's IP address
+ */
+function clearJoinAttempts(ip) {
+  joinAttempts.delete(ip);
+}
+
 module.exports = {
   checkRateLimit,
   clearUser,
   getStatus,
+  checkJoinRateLimit,
+  clearJoinAttempts,
   // Export config for testing/documentation
   MAX_MESSAGES,
-  WINDOW_MS
+  WINDOW_MS,
+  MAX_JOIN_ATTEMPTS,
+  JOIN_WINDOW_MS
 };
