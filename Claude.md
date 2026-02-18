@@ -80,6 +80,28 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
 
+## ✅ Bug Fix: Join-by-Code Created Rooms Instead of Searching - 2026-02-17
+
+**Issue:** Typing any code into the "Join" form on the homepage would silently create a new room with that code if it didn't already exist — instead of showing an error. This meant mistyped codes went undetected and the join rate limiting test was impossible to trigger.
+
+**Root Cause:** The backend's `getOrCreateSession()` always used Prisma's `upsert` operation, which creates the room if it doesn't exist. There was no way to distinguish "I want to join an existing room" from "I want to create a new room" — both paths hit the same code.
+
+**Fix:** Added a `joinOnly` flag that flows through the entire stack:
+- `HomePage.jsx`: The "Join by code" form passes `joinOnly: true`
+- `useSocket.js`: The flag is included in the `join-room` socket emit
+- `server.js`: If `joinOnly` is true, calls `checkRoomExists()` before proceeding; returns a clear error if the room doesn't exist
+- `sessionManager.js`: New `checkRoomExists(roomCode)` helper does a simple DB lookup
+
+**Create Room** flow is unchanged — no `joinOnly` flag, so `upsert` still creates the room as intended.
+
+**Files Modified:**
+- `backend/server.js` - Extract and check `joinOnly` flag in join-room handler
+- `backend/services/sessionManager.js` - Added `checkRoomExists()` helper
+- `frontend/src/hooks/useSocket.js` - Added `joinOnly` parameter, passed through emit
+- `frontend/src/components/HomePage.jsx` - Join-by-code form passes `joinOnly: true`
+
+---
+
 ## ✅ Security Hardening: Pre-Launch Audit - 2026-02-15
 
 **Goal:** Comprehensive security audit and hardening before v1 public launch.
