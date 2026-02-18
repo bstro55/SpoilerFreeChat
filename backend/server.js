@@ -250,13 +250,23 @@ io.on('connection', async (socket) => {
         return;
       }
 
-      const { roomId, nickname, sessionId: clientSessionId, sportType, roomName, teams, gameDate } = data;
+      const { roomId, nickname, sessionId: clientSessionId, sportType, roomName, teams, gameDate, joinOnly } = data;
 
       // Validate and sanitize room ID
       const roomValidation = validation.validateRoomId(roomId);
       if (!roomValidation.valid) {
         socket.emit('error', { message: roomValidation.error });
         return;
+      }
+
+      // If joining by code (not creating), verify the room exists first
+      // This prevents the backend from silently creating a room for a mistyped code
+      if (joinOnly) {
+        const exists = await sessionManager.checkRoomExists(roomValidation.sanitized);
+        if (!exists) {
+          socket.emit('error', { message: 'Room not found. Double-check the code and try again.' });
+          return;
+        }
       }
 
       // Validate and sanitize nickname

@@ -147,6 +147,8 @@ function HomePage({ onJoin, onNavigate }) {
   };
 
   // Handle joining with code
+  // joinOnly=true tells the backend to reject the join if the room doesn't already exist,
+  // preventing the form from accidentally creating a new room with a mistyped code
   const handleJoinWithCode = (e) => {
     e.preventDefault();
     clearError();
@@ -156,7 +158,7 @@ function HomePage({ onJoin, onNavigate }) {
 
     if (!trimmedNickname || !trimmedCode) return;
 
-    onJoin(trimmedCode, trimmedNickname, DEFAULT_SPORT);
+    onJoin(trimmedCode, trimmedNickname, DEFAULT_SPORT, null, true);
   };
 
   // Quick join from recent room

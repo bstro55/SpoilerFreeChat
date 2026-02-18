@@ -373,7 +373,8 @@ export function useSocket() {
   // Join a room (with session support for reconnection)
   // sportType is only used when creating a new room (first joiner sets sport)
   // roomMetadata is optional: { roomName, teams, gameDate } - only used when creating
-  const joinRoom = useCallback((roomId, nickname, sportType = 'basketball', roomMetadata = null) => {
+  // joinOnly: if true, the server will reject the join if the room doesn't already exist
+  const joinRoom = useCallback((roomId, nickname, sportType = 'basketball', roomMetadata = null, joinOnly = false) => {
     if (socketRef.current) {
       // Check if we have a stored session for this room/nickname combo
       const storedSession = getStoredSession();
@@ -391,6 +392,7 @@ export function useSocket() {
         nickname,
         sessionId,
         sportType,
+        joinOnly,
         // Include metadata only when creating a new room
         ...(roomMetadata && {
           roomName: roomMetadata.roomName,

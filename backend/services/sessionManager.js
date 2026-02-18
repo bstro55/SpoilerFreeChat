@@ -293,6 +293,18 @@ async function expireDisconnectedSessions() {
   }
 }
 
+/**
+ * Check if a room with the given code exists in the database.
+ * Used to validate "join by code" attempts before creating a session.
+ *
+ * @param {string} roomCode - The room code to look up
+ * @returns {Promise<boolean>} True if the room exists
+ */
+async function checkRoomExists(roomCode) {
+  const room = await prisma.room.findUnique({ where: { roomCode } });
+  return !!room;
+}
+
 module.exports = {
   getOrCreateSession,
   connectSession,
@@ -303,5 +315,6 @@ module.exports = {
   deactivateSession,
   cleanupOldData,
   expireDisconnectedSessions,
+  checkRoomExists,
   RECONNECT_WINDOW_MS
 };
