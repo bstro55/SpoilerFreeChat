@@ -142,8 +142,8 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
       await navigator.clipboard.writeText(roomId);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy room code:', err);
+    } catch {
+      alert(`Copy failed. Your room code is: ${roomId}`);
     }
   };
 

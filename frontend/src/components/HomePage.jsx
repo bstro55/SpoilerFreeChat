@@ -111,6 +111,7 @@ function HomePage({ onJoin, onNavigate }) {
   const [joinCode, setJoinCode] = useState('');
   const [nickname, setNickname] = useState('');
   const [recentRooms, setRecentRooms] = useState([]);
+  const [joinValidationError, setJoinValidationError] = useState('');
 
   // Set initial nickname from preferences when profile loads
   useEffect(() => {
@@ -152,11 +153,19 @@ function HomePage({ onJoin, onNavigate }) {
   const handleJoinWithCode = (e) => {
     e.preventDefault();
     clearError();
+    setJoinValidationError('');
 
     const trimmedNickname = nickname.trim();
     const trimmedCode = joinCode.trim().toUpperCase();
 
-    if (!trimmedNickname || !trimmedCode) return;
+    if (!trimmedNickname) {
+      setJoinValidationError('Please enter a nickname.');
+      return;
+    }
+    if (!trimmedCode) {
+      setJoinValidationError('Please enter a room code.');
+      return;
+    }
 
     onJoin(trimmedCode, trimmedNickname, DEFAULT_SPORT, null, true);
   };
@@ -252,34 +261,39 @@ function HomePage({ onJoin, onNavigate }) {
           </h3>
 
           {/* Join by Code Form */}
-          <form onSubmit={handleJoinWithCode} className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Input
-              type="text"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="Nickname"
-              maxLength={30}
-              className="w-full sm:w-28"
-              required
-            />
-            <Input
-              type="text"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              placeholder="Room code"
-              maxLength={20}
-              className="w-full sm:w-32 font-mono uppercase"
-              required
-            />
-            <Button
-              type="submit"
-              variant="secondary"
-              disabled={!isConnected || !nickname.trim() || !joinCode.trim()}
-              className="w-full sm:w-auto"
-            >
-              Join
-            </Button>
-          </form>
+          <div className="flex flex-col gap-2 w-full sm:w-auto">
+            <form onSubmit={handleJoinWithCode} className="flex flex-col sm:flex-row gap-2">
+              <Input
+                type="text"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="Nickname"
+                maxLength={30}
+                className="w-full sm:w-28"
+              />
+              <Input
+                type="text"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                placeholder="Room code"
+                maxLength={20}
+                className="w-full sm:w-32 font-mono uppercase"
+              />
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={!isConnected}
+                className="w-full sm:w-auto"
+              >
+                Join
+              </Button>
+            </form>
+            {joinValidationError && (
+              <Alert variant="destructive">
+                <AlertDescription>{joinValidationError}</AlertDescription>
+              </Alert>
+            )}
+          </div>
         </div>
 
         {/* Recent Rooms Grid */}

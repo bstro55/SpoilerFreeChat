@@ -34,6 +34,7 @@ function CreateRoomModal({ open, onClose, onCreateRoom, defaultNickname = '', er
   const [selectedSport, setSelectedSport] = useState(DEFAULT_SPORT);
   const [generatedCode] = useState(() => generateRoomCode());
   const [copied, setCopied] = useState(false);
+  const [validationError, setValidationError] = useState('');
 
   // Update nickname when defaultNickname changes
   useEffect(() => {
@@ -50,6 +51,7 @@ function CreateRoomModal({ open, onClose, onCreateRoom, defaultNickname = '', er
       setGameDate('');
       setSelectedSport(DEFAULT_SPORT);
       setCopied(false);
+      setValidationError('');
     }
   }, [open]);
 
@@ -59,15 +61,21 @@ function CreateRoomModal({ open, onClose, onCreateRoom, defaultNickname = '', er
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback for browsers without clipboard API
+      alert(`Copy failed. Your room code is: ${generatedCode}`);
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setValidationError('');
 
     const trimmedNickname = nickname.trim();
-    if (trimmedNickname.length < 1 || trimmedNickname.length > 30) {
+    if (trimmedNickname.length < 1) {
+      setValidationError('Please enter a nickname.');
+      return;
+    }
+    if (trimmedNickname.length > 30) {
+      setValidationError('Nickname must be 30 characters or less.');
       return;
     }
 
@@ -199,6 +207,12 @@ function CreateRoomModal({ open, onClose, onCreateRoom, defaultNickname = '', er
               Share this code with friends so they can join
             </p>
           </div>
+
+          {validationError && (
+            <Alert variant="destructive">
+              <AlertDescription>{validationError}</AlertDescription>
+            </Alert>
+          )}
 
           {error && (
             <Alert variant="destructive">

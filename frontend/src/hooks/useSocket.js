@@ -22,6 +22,36 @@ import useAuthStore from '../store/authStore';
  */
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
+// Shared AudioContext — created lazily on first sound play (browsers require a user
+// gesture before audio can be played, which the socket join event satisfies)
+let audioCtx = null;
+
+/**
+ * Play a short ping sound using the Web Audio API.
+ * Silently does nothing if the API is unavailable or the context can't be created.
+ */
+function playNotificationSound() {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window['webkitAudioContext'])();
+    }
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 — a soft, high ping
+    gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + 0.25);
+  } catch {
+    // Silently ignore — Web Audio API unavailable or blocked
+  }
+}
+
 // LocalStorage key for session data
 const SESSION_STORAGE_KEY = 'spoilerfree_session';
 
@@ -283,6 +313,14 @@ export function useSocket() {
     // Message events
     socket.on('new-message', (message) => {
       addMessage(message);
+
+      // Play notification sound if the user has it enabled and the message isn't their own
+      const profile = useAuthStore.getState().profile;
+      const soundEnabled = profile?.notificationSound ?? true;
+      const currentNickname = useChatStore.getState().nickname;
+      if (soundEnabled && message.nickname !== currentNickname) {
+        playNotificationSound();
+      }
     });
 
     // Message history (sent when late joiner syncs for the first time)

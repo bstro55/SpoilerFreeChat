@@ -28,10 +28,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 function PreferencesModal({ isOpen, onClose }) {
   const { profile, updatePreferences } = useAuthStore();
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   // Form state
   const [preferredNickname, setPreferredNickname] = useState('');
@@ -49,6 +51,7 @@ function PreferencesModal({ isOpen, onClose }) {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError('');
     try {
       await updatePreferences({
         preferredNickname: preferredNickname.trim() || null,
@@ -56,8 +59,8 @@ function PreferencesModal({ isOpen, onClose }) {
         notificationSound,
       });
       onClose();
-    } catch (error) {
-      console.error('Failed to save preferences:', error);
+    } catch {
+      setSaveError('Failed to save preferences. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -119,6 +122,12 @@ function PreferencesModal({ isOpen, onClose }) {
             />
           </div>
         </div>
+
+        {saveError && (
+          <Alert variant="destructive" className="mt-2">
+            <AlertDescription>{saveError}</AlertDescription>
+          </Alert>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

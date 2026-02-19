@@ -1,6 +1,14 @@
 // Load environment variables first
 require('dotenv').config();
 
+// Validate required environment variables before anything else starts
+// This gives a clear error message instead of cryptic failures at runtime
+const REQUIRED_ENV_VARS = ['DATABASE_URL', 'SUPABASE_URL', 'CORS_ORIGIN'];
+const missingEnvVars = REQUIRED_ENV_VARS.filter(key => !process.env[key]);
+if (missingEnvVars.length > 0) {
+  throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+}
+
 // Initialize Sentry for error tracking (must be before other requires)
 const Sentry = require('@sentry/node');
 if (process.env.SENTRY_DSN) {
@@ -27,6 +35,7 @@ const authService = require('./services/authService');
 const userService = require('./services/userService');
 const { getSportConfig, DEFAULT_SPORT } = require('./services/sportConfig');
 const logger = require('./services/logger');
+const { prisma } = require('./services/database');
 
 // Create Express app and HTTP server
 const app = express();
@@ -744,3 +753,15 @@ if (process.env.SENTRY_DSN) {
 server.listen(PORT, () => {
   logger.info({ port: PORT, cors: CORS_ORIGIN }, 'Server started');
 });
+
+// Graceful shutdown — called on SIGTERM (Koyeb deploy) or SIGINT (Ctrl+C)
+// Closes Socket.IO connections, stops accepting HTTP requests, disconnects DB
+async function shutdown(signal) {
+  logger.info({ signal }, 'Shutting down gracefully...');
+  io.close();
+  server.close();
+  await prisma.$disconnect();
+  process.exit(0);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

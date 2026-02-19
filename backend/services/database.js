@@ -72,20 +72,10 @@ async function withRetry(operation, maxRetries = 3, delayMs = 100) {
   throw lastError;
 }
 
-// Graceful shutdown - close database connection when server stops
+// Graceful shutdown - close database connection when process exits normally
+// SIGTERM and SIGINT are handled centrally in server.js to also close Socket.IO + HTTP server
 process.on('beforeExit', async () => {
   await prisma.$disconnect();
-});
-
-// Handle SIGINT and SIGTERM for clean shutdown
-process.on('SIGINT', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
 });
 
 module.exports = prisma;
