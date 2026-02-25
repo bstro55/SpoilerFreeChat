@@ -155,7 +155,7 @@ function queueMessage(socketId, message, deliverAt) {
 
   // Enforce max queue size to prevent memory issues
   if (queue.length >= MAX_QUEUE_SIZE_PER_USER) {
-    console.warn(`[MessageQueue] Queue full for ${socketId}, dropping oldest message`);
+    logger.warn({ socketId, queueSize: queue.length }, 'Message queue full, dropping oldest message');
     queue.shift(); // Remove oldest
   }
 

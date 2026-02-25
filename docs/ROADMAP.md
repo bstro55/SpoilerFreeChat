@@ -4,6 +4,19 @@
 
 ---
 
+## ✅ Completed — Session 2026-02-24
+
+All 6 remaining Phase 1 code items done (P1-B deferred pending name/logo):
+
+1. ✅ **P1-D** — Removed all 20+ `console.log` / `console.error` calls from production frontend (`useSocket.js`, `AuthModal.jsx`)
+2. ✅ **P1-E** — Room code now regenerates each time `CreateRoomModal` opens (`CreateRoomModal.jsx`)
+3. ✅ **P1-F** — `console.warn` replaced with structured `logger.warn` in `messageQueue.js`
+4. ✅ **P1-G** — Deleted dead `Header.jsx` (68 lines, never imported)
+5. ✅ **P1-H** — Email format regex validation added to magic link form (`AuthModal.jsx`)
+6. ✅ **E1-G** — `pino-pretty` moved from `dependencies` → `devDependencies` in `backend/package.json`
+
+---
+
 ## ✅ Completed — Session 2026-02-17
 
 All 8 items from the first session are done:
@@ -21,15 +34,15 @@ All 8 items from the first session are done:
 
 ## Where to Start Next Session
 
-Suggested order — continue working through Phase 1 items:
+Phase 1 code items are complete. One deferred process step remains, then move to Phase 2:
 
-1. **P1-B** — Submit for Google OAuth verification (process step, not code — prerequisites now met)
-2. **P1-D** — Remove console logs from production frontend (`useSocket.js`, `ChatRoom.jsx`, `HomePage.jsx`)
-3. **P1-E** — Fix generated room code not refreshing when modal reopens (`CreateRoomModal.jsx` line 35)
-4. **P1-F** — Fix `console.warn` in backend message queue (`messageQueue.js` line 158)
-5. **P1-G** — Delete dead `Header.jsx` file (never imported, 68 lines of dead code)
-6. **P1-H** — Add email format validation to magic link form (`AuthModal.jsx` lines 75–80)
-7. **E1-G** — Move `pino-pretty` to devDependencies in `backend/package.json`
+1. **P1-B** — Submit for Google OAuth verification *(deferred — waiting on final app name and logo)*
+2. **P2-A** — Add product analytics (PostHog) — `main.jsx`, `useSocket.js`, `CreateRoomModal.jsx`
+3. **P2-B** — Build shareable room invite link (`/join/:roomCode` route) — `App.jsx`, `HomePage.jsx`
+4. **E2-A** — Add ESLint `no-console` rule + `husky` pre-commit hook — `eslint.config.js`
+5. **E2-B** — Add Prettier for consistent code formatting — `.prettierrc`, both packages
+6. **E2-C** — Add rate limiting to REST endpoints (`/api/user/*`) — `backend/server.js`
+7. **E2-F** — Fix timezone bug in date display (`HomePage.jsx` lines 46–51)
 
 ---
 
@@ -74,14 +87,14 @@ Each item includes the relevant files so you can pick it up and start immediatel
 - ✅ Privacy Policy at `/privacy`
 - ✅ Terms of Service at `/terms`
 
-**Steps:**
+**⏸ Deferred:** Waiting on final app name and logo to be locked in before submitting. Submitting with a placeholder name or no logo will require re-verification later.
+
+**Steps (when ready):**
 1. Go to Google Cloud Console → APIs & Services → OAuth consent screen
 2. Add Privacy Policy URL and Terms of Service URL
 3. Upload an app logo (120x120px)
 4. Click "Prepare for verification" → Submit
 5. Turnaround: ~2–4 weeks
-
-**Blocker:** Legal pages are currently unstyled (see P1-C below) — fix that first so the pages look legitimate before submitting.
 
 ---
 

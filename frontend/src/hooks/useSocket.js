@@ -63,8 +63,7 @@ function getStoredSession() {
   try {
     const stored = localStorage.getItem(SESSION_STORAGE_KEY);
     return stored ? JSON.parse(stored) : null;
-  } catch (e) {
-    console.error('Error reading session from localStorage:', e);
+  } catch {
     return null;
   }
 }
@@ -86,8 +85,8 @@ function storeSession(roomId, nickname, sessionId, sportType = null, viewingHome
       sportType,
       viewingHome
     }));
-  } catch (e) {
-    console.error('Error storing session in localStorage:', e);
+  } catch {
+    // Silently ignore — localStorage unavailable
   }
 }
 
@@ -97,8 +96,8 @@ function storeSession(roomId, nickname, sessionId, sportType = null, viewingHome
 function clearStoredSession() {
   try {
     localStorage.removeItem(SESSION_STORAGE_KEY);
-  } catch (e) {
-    console.error('Error clearing session from localStorage:', e);
+  } catch {
+    // Silently ignore — localStorage unavailable
   }
 }
 
@@ -138,7 +137,6 @@ export function useSocket() {
 
       // If token changed (e.g., user signed in or out), reconnect with new token
       if (newToken !== oldToken && socketRef.current) {
-        console.log('Auth state changed, reconnecting socket with new token');
         lastTokenRef.current = newToken;
         socketRef.current.auth = { token: newToken };
         socketRef.current.disconnect();
@@ -172,7 +170,6 @@ export function useSocket() {
 
     // Connection events
     socket.on('connect', () => {
-      console.log('Connected to server');
       setConnected(true);
       setConnectionError(null);
 
@@ -182,15 +179,12 @@ export function useSocket() {
         // If user was viewing home when they refreshed, don't show "Reconnecting..." spinner
         // Just reconnect in background and show home screen
         if (storedSession.viewingHome) {
-          console.log('Found stored session with viewingHome=true, reconnecting in background');
           setPendingAutoReconnect(false); // Don't show spinner
         } else {
-          console.log('Found stored session, auto-reconnecting to room:', storedSession.roomId);
           setPendingAutoReconnect(true);
 
           // Set timeout for reconnection - if it takes too long, fall back to JoinRoom
           reconnectTimeoutRef.current = setTimeout(() => {
-            console.log('Auto-reconnect timed out after', RECONNECT_TIMEOUT_MS, 'ms');
             setPendingAutoReconnect(false);
             clearStoredSession();
             setError('Reconnection timed out. Please join the room again.');
@@ -207,7 +201,6 @@ export function useSocket() {
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('Disconnected from server:', reason);
       setConnected(false);
       // Set a friendly message based on the disconnect reason
       if (reason === 'io server disconnect') {
@@ -217,33 +210,27 @@ export function useSocket() {
       }
     });
 
-    socket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
+    socket.on('connect_error', () => {
       setConnectionError('Unable to connect to server');
     });
 
     // Reconnection events
-    socket.io.on('reconnect_attempt', (attempt) => {
-      console.log(`Reconnection attempt ${attempt}...`);
+    socket.io.on('reconnect_attempt', () => {
       setReconnecting(true);
     });
 
-    socket.io.on('reconnect', (attemptNumber) => {
-      console.log(`Reconnected after ${attemptNumber} attempts`);
+    socket.io.on('reconnect', () => {
       setReconnecting(false);
       setConnectionError(null);
     });
 
     socket.io.on('reconnect_failed', () => {
-      console.error('Failed to reconnect');
       setReconnecting(false);
       setConnectionError('Failed to reconnect. Please refresh the page.');
     });
 
     // Room events
     socket.on('joined-room', (data) => {
-      console.log('Joined room:', data);
-
       // Clear reconnect timeout since we successfully joined
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -277,7 +264,6 @@ export function useSocket() {
 
       // If reconnecting with restored sync state, apply it
       if (data.isReconnect && data.syncState) {
-        console.log('Restoring sync state from server:', data.syncState);
         setSyncState({
           gameTime: {
             // Support both 'period' (new) and 'quarter' (backwards compat)
@@ -290,23 +276,13 @@ export function useSocket() {
           isBaseline: data.syncState.isBaseline
         });
       }
-
-      if (data.isReconnect) {
-        console.log('Successfully reconnected to room with previous session');
-      }
-
-      if (data.sportType) {
-        console.log(`Room sport type: ${data.sportType}`);
-      }
     });
 
     socket.on('user-joined', (user) => {
-      console.log('User joined:', user);
       addUser(user);
     });
 
     socket.on('user-left', (user) => {
-      console.log('User left:', user);
       removeUser(user.id);
     });
 
@@ -325,13 +301,11 @@ export function useSocket() {
 
     // Message history (sent when late joiner syncs for the first time)
     socket.on('message-history', (data) => {
-      console.log('Received message history:', data.messages.length, 'messages');
       setMessages(data.messages);
     });
 
     // Phase 2: Game time sync events (updated Phase 8 for multi-sport)
     socket.on('sync-confirmed', (data) => {
-      console.log('Game time sync confirmed:', data);
       setSyncState({
         // Support both 'period' (new) and 'quarter' (backwards compat)
         gameTime: {
@@ -353,7 +327,6 @@ export function useSocket() {
     });
 
     socket.on('user-synced', (data) => {
-      console.log('User synced their game time:', data);
       updateUserSync(data.id, {
         isSynced: data.isSynced,
         offset: data.offset,
@@ -363,7 +336,6 @@ export function useSocket() {
 
     // When our offset changes due to someone else syncing (baseline shift)
     socket.on('offset-updated', (data) => {
-      console.log('Our offset was updated (baseline shift):', data);
       setSyncState({
         gameTime: useChatStore.getState().gameTime, // Keep existing game time
         offset: data.offset,
@@ -374,7 +346,6 @@ export function useSocket() {
 
     // Session expired event
     socket.on('session-expired', (data) => {
-      console.log('Session expired:', data.message);
       // Clear reconnect timeout
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -387,7 +358,6 @@ export function useSocket() {
 
     // Error events
     socket.on('error', (data) => {
-      console.error('Server error:', data);
       // Clear reconnect timeout
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -422,7 +392,6 @@ export function useSocket() {
           storedSession.roomId === roomId &&
           storedSession.nickname === nickname) {
         sessionId = storedSession.sessionId;
-        console.log('Found stored session, attempting reconnection...');
       }
 
       socketRef.current.emit('join-room', {

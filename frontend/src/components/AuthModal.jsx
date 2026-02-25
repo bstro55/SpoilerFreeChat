@@ -47,9 +47,8 @@ function AuthModal({ isOpen, onClose }) {
       if (error) {
         setError(error.message);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to start sign in. Please try again.');
-      console.error('Sign in error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -65,6 +64,12 @@ function AuthModal({ isOpen, onClose }) {
 
     if (!email.trim()) {
       setError('Please enter your email address');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address');
       return;
     }
 
@@ -84,9 +89,8 @@ function AuthModal({ isOpen, onClose }) {
       } else {
         setMagicLinkSent(true);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to send magic link. Please try again.');
-      console.error('Magic link error:', err);
     } finally {
       setIsLoading(false);
     }

@@ -32,7 +32,7 @@ function CreateRoomModal({ open, onClose, onCreateRoom, defaultNickname = '', er
   const [gameDate, setGameDate] = useState('');
   const [nickname, setNickname] = useState(defaultNickname);
   const [selectedSport, setSelectedSport] = useState(DEFAULT_SPORT);
-  const [generatedCode] = useState(() => generateRoomCode());
+  const [generatedCode, setGeneratedCode] = useState(() => generateRoomCode());
   const [copied, setCopied] = useState(false);
   const [validationError, setValidationError] = useState('');
 
@@ -43,7 +43,7 @@ function CreateRoomModal({ open, onClose, onCreateRoom, defaultNickname = '', er
     }
   }, [defaultNickname]);
 
-  // Reset form when modal opens
+  // Reset form when modal opens (also regenerates room code so each open gets a fresh one)
   useEffect(() => {
     if (open) {
       setRoomName('');
@@ -52,6 +52,7 @@ function CreateRoomModal({ open, onClose, onCreateRoom, defaultNickname = '', er
       setSelectedSport(DEFAULT_SPORT);
       setCopied(false);
       setValidationError('');
+      setGeneratedCode(generateRoomCode());
     }
   }, [open]);
 
