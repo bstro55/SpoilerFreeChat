@@ -1,0 +1,6 @@
+# Run ESLint on the frontend if any frontend source files are staged.
+# This catches console.log calls and other lint errors before they reach git history.
+if git diff --cached --name-only | grep -q "^frontend/src"; then
+  echo "Running ESLint on frontend..."
+  npm run lint --prefix frontend
+fi

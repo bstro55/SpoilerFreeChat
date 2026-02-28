@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Copy, Check } from 'lucide-react';
 import { getAllSports, DEFAULT_SPORT } from '../lib/sportConfig';
+import { trackEvent } from '@/lib/posthog';
 
 /**
  * Generate a random room code like "GAME-X7K2"
@@ -79,6 +80,8 @@ function CreateRoomModal({ open, onClose, onCreateRoom, defaultNickname = '', er
       setValidationError('Nickname must be 30 characters or less.');
       return;
     }
+
+    trackEvent('room_created', { sportType: selectedSport });
 
     // Pass all room data to parent
     onCreateRoom({

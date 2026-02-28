@@ -19,6 +19,7 @@ export const supabase =
     : null;
 
 if (!supabase) {
+  // eslint-disable-next-line no-console -- intentional dev-time config warning, no UI to surface this to
   console.warn(
     'Supabase not configured. Authentication features disabled. To enable, set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
   );

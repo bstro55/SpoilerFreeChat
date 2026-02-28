@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Home, Menu, X, Clock, Copy, Check } from 'lucide-react';
+import { Home, Menu, X, Clock, Copy, Check, Link2 } from 'lucide-react';
 import { getSportConfig } from '../lib/sportConfig';
 
 /**
@@ -42,6 +42,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   const [showResyncReminder, setShowResyncReminder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [, setTick] = useState(0);  // Force re-render for relative time updates
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -144,6 +145,17 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       alert(`Copy failed. Your room code is: ${roomId}`);
+    }
+  };
+
+  const copyInviteLink = async () => {
+    const link = `${window.location.origin}/join/${roomId}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      alert(`Copy failed. Your invite link is: ${link}`);
     }
   };
 
@@ -253,26 +265,48 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
 
           <div className="p-3 flex-1 overflow-y-auto space-y-3">
             {/* Room Code */}
-            <div className="flex items-center justify-between px-1">
-              <div>
-                <p className="text-xs text-muted-foreground">Room Code</p>
-                <code className="font-mono text-sm font-semibold">{roomId}</code>
+            <div className="px-1 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">Room Code</p>
+                  <code className="font-mono text-sm font-semibold">{roomId}</code>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 gap-1"
+                  onClick={copyRoomCode}
+                  aria-label="Copy room code"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-3 w-3 text-green-500" />
+                      <span className="text-xs">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3 w-3" />
+                      <span className="text-xs">Copy Code</span>
+                    </>
+                  )}
+                </Button>
               </div>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
-                className="h-7 px-2 gap-1"
-                onClick={copyRoomCode}
+                className="w-full h-7 gap-1 text-xs"
+                onClick={copyInviteLink}
+                aria-label="Copy invite link"
               >
-                {copied ? (
+                {linkCopied ? (
                   <>
                     <Check className="h-3 w-3 text-green-500" />
-                    <span className="text-xs">Copied</span>
+                    Link Copied!
                   </>
                 ) : (
                   <>
-                    <Copy className="h-3 w-3" />
-                    <span className="text-xs">Copy</span>
+                    <Link2 className="h-3 w-3" />
+                    Copy Invite Link
                   </>
                 )}
               </Button>

@@ -19,10 +19,12 @@ import {
   Calendar,
 } from 'lucide-react';
 import { getAllSports, DEFAULT_SPORT, getSportConfig } from '../lib/sportConfig';
+import { trackEvent } from '@/lib/posthog';
 
 /**
  * Feature Card Component
  */
+// eslint-disable-next-line no-unused-vars -- Icon IS used in JSX below; no react/jsx-uses-vars plugin installed
 function FeatureCard({ icon: Icon, title, description, color }) {
   return (
     <div className="flex flex-col items-center text-center p-6">
@@ -46,7 +48,9 @@ function RoomCard({ room, onClick, disabled }) {
   // Format date if available
   const formatDate = (dateStr) => {
     if (!dateStr) return null;
-    const date = new Date(dateStr);
+    // Append a time component so JS parses as local time, not UTC midnight.
+    // Without this, '2026-02-17' is treated as UTC 00:00 and displays as Feb 16 in US timezones.
+    const date = new Date(dateStr + 'T12:00:00');
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
@@ -91,7 +95,7 @@ function RoomCard({ room, onClick, disabled }) {
  *
  * Landing page with hero section, feature cards, and room management.
  */
-function HomePage({ onJoin, onNavigate }) {
+function HomePage({ onJoin, onNavigate, prefillRoomCode = '' }) {
   const { profile, session, fetchRecentRooms } = useAuthStore();
   const {
     isConnected,
@@ -108,7 +112,7 @@ function HomePage({ onJoin, onNavigate }) {
 
   // State
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [joinCode, setJoinCode] = useState('');
+  const [joinCode, setJoinCode] = useState(prefillRoomCode);
   const [nickname, setNickname] = useState('');
   const [recentRooms, setRecentRooms] = useState([]);
   const [joinValidationError, setJoinValidationError] = useState('');
@@ -167,6 +171,7 @@ function HomePage({ onJoin, onNavigate }) {
       return;
     }
 
+    trackEvent('room_joined', { via: prefillRoomCode ? 'invite_link' : 'code_entry' });
     onJoin(trimmedCode, trimmedNickname, DEFAULT_SPORT, null, true);
   };
 
@@ -199,6 +204,19 @@ function HomePage({ onJoin, onNavigate }) {
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Return to Room
               </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {/* Invite Notice — shown when arriving via a /join/:roomCode link */}
+      {prefillRoomCode && (
+        <div className="max-w-5xl mx-auto px-4 mt-4">
+          <Alert>
+            <AlertDescription className="flex items-center gap-2">
+              <span>You&apos;ve been invited to join room</span>
+              <code className="font-mono font-semibold">{prefillRoomCode}</code>
+              <span>— enter your nickname below and click Join.</span>
             </AlertDescription>
           </Alert>
         </div>

@@ -53,7 +53,6 @@ const useAuthStore = create((set, get) => ({
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('Auth state changed:', event);
         set({ session });
 
         if (session) {

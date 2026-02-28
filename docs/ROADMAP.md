@@ -37,12 +37,12 @@ All 8 items from the first session are done:
 Phase 1 code items are complete. One deferred process step remains, then move to Phase 2:
 
 1. **P1-B** — Submit for Google OAuth verification *(deferred — waiting on final app name and logo)*
-2. **P2-A** — Add product analytics (PostHog) — `main.jsx`, `useSocket.js`, `CreateRoomModal.jsx`
-3. **P2-B** — Build shareable room invite link (`/join/:roomCode` route) — `App.jsx`, `HomePage.jsx`
-4. **E2-A** — Add ESLint `no-console` rule + `husky` pre-commit hook — `eslint.config.js`
-5. **E2-B** — Add Prettier for consistent code formatting — `.prettierrc`, both packages
-6. **E2-C** — Add rate limiting to REST endpoints (`/api/user/*`) — `backend/server.js`
-7. **E2-F** — Fix timezone bug in date display (`HomePage.jsx` lines 46–51)
+2. ✅ **P2-A** — Add product analytics (PostHog) — `main.jsx`, `useSocket.js`, `CreateRoomModal.jsx`, `HomePage.jsx`
+3. ✅ **P2-B** — Build shareable room invite link (`/join/:roomCode` route) — `App.jsx`, `HomePage.jsx`, `ChatRoom.jsx`
+4. ✅ **E2-A** — Add ESLint `no-console` rule + `husky` pre-commit hook — `eslint.config.js`, `.husky/pre-commit`
+5. ✅ **E2-B** — Add Prettier for consistent code formatting — `.prettierrc`, both packages
+6. ✅ **E2-C** — Add rate limiting to REST endpoints (`/api/user/*`) — `backend/server.js`
+7. ✅ **E2-F** — Fix timezone bug in date display (`HomePage.jsx` lines 46–51)
 
 ---
 

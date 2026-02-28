@@ -63,7 +63,7 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 
 ## Current State
 
-- **Phase**: Security Hardening (2026-02-15) ✅
+- **Phase**: Polish & Cleanup (2026-02-24) ✅
 - **Tech stack**: React + Vite + Tailwind + Shadcn/UI (frontend), Node.js + Express + Socket.IO + Prisma (backend)
 - **Database**: Supabase PostgreSQL for persistence
 - **Authentication**: Google OAuth via Supabase Auth (optional - guests still supported)
@@ -79,6 +79,44 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - **Live URLs**:
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
+
+## ✅ Polish & Cleanup: Roadmap Phase 1 Completion - 2026-02-24
+
+**Goal:** Complete all remaining Phase 1 roadmap items before moving to Phase 2 growth features.
+
+**What Was Done:**
+
+### Frontend Console Log Removal
+- Stripped all 20+ `console.log` and `console.error` calls from `useSocket.js` — socket events, reconnect messages, state dumps
+- Removed stray `console.error` calls in `AuthModal.jsx` catch blocks
+- Errors continue to surface in the UI via state; nothing user-facing was lost
+
+### Room Code Refresh Fix
+- `CreateRoomModal.jsx` now regenerates the room code each time the modal opens
+- Previously the code was generated once on component mount and never changed
+
+### Backend Logger Consistency
+- Replaced lone `console.warn` in `messageQueue.js` with structured `logger.warn` call — now consistent with the rest of the backend
+
+### Dead Code Removal
+- Deleted `Header.jsx` (68 lines, never imported anywhere — duplicated by `ChatRoom.jsx`'s own header)
+
+### Email Validation
+- Added regex format check in `AuthModal.jsx` before calling `supabase.auth.signInWithOtp()` — shows a clear error for malformed addresses
+
+### Dependency Hygiene
+- Moved `pino-pretty` from `dependencies` → `devDependencies` in `backend/package.json`
+- It's a development formatter only; production (Koyeb) no longer installs it
+
+**Files Modified:**
+- `frontend/src/hooks/useSocket.js` — console logs removed
+- `frontend/src/components/AuthModal.jsx` — console logs removed, email validation added
+- `frontend/src/components/CreateRoomModal.jsx` — room code regenerates on each open
+- `frontend/src/components/Header.jsx` — deleted
+- `backend/services/messageQueue.js` — console.warn → logger.warn
+- `backend/package.json` — pino-pretty moved to devDependencies
+
+---
 
 ## ✅ Bug Fix: Join-by-Code Created Rooms Instead of Searching - 2026-02-17
 

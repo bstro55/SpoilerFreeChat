@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import './index.css'
+import './lib/posthog' // Initialize PostHog analytics
 import App from './App.jsx'
 
 // Initialize Sentry for error tracking (only in production)

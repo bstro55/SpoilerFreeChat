@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import useChatStore from '../store/chatStore';
 import useAuthStore from '../store/authStore';
+import { trackEvent } from '../lib/posthog';
 
 /**
  * Socket.IO Connection Hook
@@ -306,6 +307,7 @@ export function useSocket() {
 
     // Phase 2: Game time sync events (updated Phase 8 for multi-sport)
     socket.on('sync-confirmed', (data) => {
+      trackEvent('sync_completed', { offset: data.offset, isBaseline: data.isBaseline });
       setSyncState({
         // Support both 'period' (new) and 'quarter' (backwards compat)
         gameTime: {
@@ -413,6 +415,7 @@ export function useSocket() {
   // Send a message
   const sendMessage = useCallback((content) => {
     if (socketRef.current) {
+      trackEvent('message_sent');
       socketRef.current.emit('send-message', { content });
     }
   }, []);

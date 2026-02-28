@@ -19,6 +19,17 @@ function App() {
   const { roomId, pendingAutoReconnect, viewingHome } = useChatStore();
   const { initialize, isLoading, profile } = useAuthStore();
 
+  // Extract room code from /join/:roomCode invite URLs
+  const [prefillRoomCode] = useState(() => {
+    const match = window.location.pathname.match(/^\/join\/([A-Z0-9-]+)$/i);
+    if (match) {
+      // Clean the URL so the address bar shows '/' after extraction
+      window.history.replaceState({}, '', '/');
+      return match[1].toUpperCase();
+    }
+    return '';
+  });
+
   // Simple path-based routing for legal pages
   const [currentPage, setCurrentPage] = useState(() => {
     const path = window.location.pathname;
@@ -105,7 +116,7 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {showHomePage ? (
-        <HomePage onJoin={joinRoom} onNavigate={navigateTo} />
+        <HomePage onJoin={joinRoom} onNavigate={navigateTo} prefillRoomCode={prefillRoomCode} />
       ) : (
         <ChatRoom
           onSendMessage={sendMessage}

@@ -109,6 +109,16 @@ const connectionLimiter = rateLimit({
 // Apply rate limiter to Socket.IO's underlying HTTP engine
 io.engine.use(connectionLimiter);
 
+// REST API rate limiting — applied to /api/user/* endpoints
+// More generous than the connection limiter since these are authenticated data fetches
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,  // 1 minute window
+  limit: 60,            // 60 requests per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+});
+
 // Initialize the message queue service with Socket.IO
 messageQueue.initialize(io);
 
@@ -146,7 +156,7 @@ async function requireAuth(req, res, next) {
  * GET /api/user/preferences
  * Get the current user's preferences
  */
-app.get('/api/user/preferences', requireAuth, async (req, res) => {
+app.get('/api/user/preferences', apiLimiter, requireAuth, async (req, res) => {
   try {
     const preferences = await userService.getPreferences(req.user.id);
     res.json(preferences || {});
@@ -160,7 +170,7 @@ app.get('/api/user/preferences', requireAuth, async (req, res) => {
  * PATCH /api/user/preferences
  * Update the current user's preferences
  */
-app.patch('/api/user/preferences', requireAuth, async (req, res) => {
+app.patch('/api/user/preferences', apiLimiter, requireAuth, async (req, res) => {
   try {
     const { preferredNickname, theme, notificationSound } = req.body;
     const updated = await userService.updatePreferences(req.user.id, {
@@ -184,7 +194,7 @@ app.patch('/api/user/preferences', requireAuth, async (req, res) => {
  * GET /api/user/recent-rooms
  * Get the current user's recent rooms for quick rejoin
  */
-app.get('/api/user/recent-rooms', requireAuth, async (req, res) => {
+app.get('/api/user/recent-rooms', apiLimiter, requireAuth, async (req, res) => {
   try {
     const recentRooms = await userService.getRecentRooms(req.user.id);
     res.json(recentRooms);
