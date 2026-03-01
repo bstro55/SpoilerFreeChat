@@ -80,6 +80,62 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
 
+## ✅ Phase 2 Growth Features & Engineering Quality - 2026-02-28
+
+**Goal:** Complete the Phase 2 "Early Growth" roadmap items and engineering quality improvements.
+
+**What Was Done:**
+
+### Shareable Room Invite Links (P2-B)
+- URLs like `https://yourapp.com/join/GAME-X7K2` now work end-to-end
+- `App.jsx` detects `/join/:roomCode` on load, extracts the code, cleans URL back to `/`
+- `HomePage.jsx` pre-fills the join form and shows an invite notice banner
+- "Copy Invite Link" button added to the ChatRoom sidebar (copies the full URL)
+- Vercel's existing `/*` rewrite already handled the routing — no config changes needed
+
+### PostHog Product Analytics (P2-A)
+- Installed `posthog-js`, initialized in `main.jsx` via `src/lib/posthog.js`
+- Tracks 4 key events: `room_created`, `room_joined` (with `via` property), `sync_completed`, `message_sent`
+- `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` added to `.env`, `.env.example`, and Vercel
+
+### ESLint no-console Rule + Husky Pre-commit Hook (E2-A)
+- Added `no-console: ['warn', { allow: ['error'] }]` to `frontend/eslint.config.js`
+- Root-level `package.json` created; Husky installed; `.husky/pre-commit` runs ESLint on frontend commits
+- Fixed 2 missed console statements (`authStore.js`, `supabase.js`)
+- Downgraded 3 pre-existing strict rules to warnings (react-hooks@7 became stricter)
+
+### Prettier Code Formatting (E2-B)
+- `.prettierrc` added at root (singleQuote, semi, tabWidth: 2, trailingComma: es5, printWidth: 100)
+- `npm run format` script added to both frontend and backend
+
+### Rate Limiting on REST Endpoints (E2-C)
+- `apiLimiter` added to `backend/server.js`: 60 req/min per IP
+- Applied to `GET /api/user/preferences`, `PATCH /api/user/preferences`, `GET /api/user/recent-rooms`
+
+### Timezone Bug Fix (E2-F)
+- Date-only strings like `'2026-02-17'` were parsed as UTC midnight, showing as Feb 16 in US timezones
+- Fixed by appending `T12:00:00` before parsing: `new Date(dateStr + 'T12:00:00')`
+- File: `frontend/src/components/HomePage.jsx`
+
+**Files Modified:**
+- `frontend/src/App.jsx` — invite URL detection
+- `frontend/src/components/HomePage.jsx` — prefill, invite notice, timezone fix
+- `frontend/src/components/ChatRoom.jsx` — Copy Invite Link button
+- `frontend/src/components/CreateRoomModal.jsx` — room_created analytics event
+- `frontend/src/hooks/useSocket.js` — sync_completed, message_sent analytics events
+- `frontend/src/main.jsx` — PostHog initialization import
+- `frontend/src/lib/posthog.js` — new file, PostHog wrapper
+- `frontend/src/store/authStore.js` — removed stray console.log
+- `frontend/src/lib/supabase.js` — eslint-disable for intentional dev warning
+- `frontend/eslint.config.js` — no-console rule, rule overrides
+- `frontend/.env.example` — PostHog vars documented
+- `backend/server.js` — apiLimiter for REST endpoints
+- `.husky/pre-commit` — new file, pre-commit ESLint hook
+- `.prettierrc` — new file, shared formatting config
+- `package.json` — new root package.json for Husky
+
+---
+
 ## ✅ Polish & Cleanup: Roadmap Phase 1 Completion - 2026-02-24
 
 **Goal:** Complete all remaining Phase 1 roadmap items before moving to Phase 2 growth features.
