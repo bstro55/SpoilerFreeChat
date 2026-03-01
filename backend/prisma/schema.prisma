@@ -1,12 +1,13 @@
 // Prisma Schema for SpoilerFreeChat
 // Database: Supabase PostgreSQL
 //
-// This schema defines five main models:
+// This schema defines six main models:
 // - Room: Chat rooms for specific games/events (sportType added in Phase 8)
 // - Message: Persisted chat messages
 // - Session: User sessions for reconnection support
 // - User: Authenticated users with preferences (Phase 7)
 // - RecentRoom: Tracks recently visited rooms per user (Phase 7, sportType added Phase 8)
+// - Report: User-submitted reports of abusive messages (Phase 3)
 
 generator client {
   provider = "prisma-client-js"
@@ -132,4 +133,17 @@ model Session {
   @@index([lastSeenAt])          // For session cleanup
   @@index([roomId, isActive])    // For listing active users in room
   @@index([userId])              // For finding user's sessions
+}
+
+// User-submitted reports of abusive or inappropriate messages
+// Visible in the Supabase dashboard and backend logs
+model Report {
+  id                    String   @id @default(cuid())
+  roomCode              String
+  reporterNickname      String
+  messageContent        String
+  messageSenderNickname String
+  createdAt             DateTime @default(now())
+
+  @@index([createdAt]) // For admin review sorted by time
 }

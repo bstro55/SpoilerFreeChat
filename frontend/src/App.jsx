@@ -15,7 +15,7 @@ import { Spinner } from './components/ui/spinner';
  * Initializes auth and socket connection on mount.
  */
 function App() {
-  const { joinRoom, sendMessage, leaveRoom, syncGameTime } = useSocket();
+  const { joinRoom, sendMessage, leaveRoom, syncGameTime, reportMessage, startCountdown } = useSocket();
   const { roomId, pendingAutoReconnect, viewingHome } = useChatStore();
   const { initialize, isLoading, profile } = useAuthStore();
 
@@ -122,6 +122,8 @@ function App() {
           onSendMessage={sendMessage}
           onLeaveRoom={leaveRoom}
           onSyncGameTime={syncGameTime}
+          onReportMessage={reportMessage}
+          onStartCountdown={startCountdown}
         />
       )}
     </div>

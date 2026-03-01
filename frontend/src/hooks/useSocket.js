@@ -291,12 +291,18 @@ export function useSocket() {
     socket.on('new-message', (message) => {
       addMessage(message);
 
-      // Play notification sound if the user has it enabled and the message isn't their own
       const profile = useAuthStore.getState().profile;
       const soundEnabled = profile?.notificationSound ?? true;
       const currentNickname = useChatStore.getState().nickname;
-      if (soundEnabled && message.nickname !== currentNickname) {
-        playNotificationSound();
+      if (message.nickname !== currentNickname) {
+        // Play notification sound if enabled
+        if (soundEnabled) {
+          playNotificationSound();
+        }
+        // Flash the browser tab title when the tab is in the background
+        if (document.hidden) {
+          document.title = '(1) New Message — SpoilerFreeChat';
+        }
       }
     });
 
@@ -369,6 +375,38 @@ export function useSocket() {
       setError(data.message);
     });
 
+    // Report confirmed (server acknowledges the report was saved)
+    socket.on('report-confirmed', () => {
+      // Handled via the reportMessage callback — no store update needed
+    });
+
+    // Countdown sync events — coordinated 3-2-1 sync across all room members
+    socket.on('countdown-started', () => {
+      useChatStore.getState().setCountdown(true, null);
+    });
+
+    socket.on('countdown-tick', (data) => {
+      useChatStore.getState().setCountdown(true, data.count);
+    });
+
+    socket.on('sync-now', () => {
+      // Show "SYNC NOW!" for a moment, then auto-trigger TimeSync form submission
+      useChatStore.getState().setCountdown(true, 0);
+      useChatStore.getState().setAutoSyncTrigger(true);
+      // Reset trigger after a tick so it can fire again on the next countdown
+      setTimeout(() => useChatStore.getState().setAutoSyncTrigger(false), 100);
+      // Clear the countdown overlay after the "SYNC NOW!" display
+      setTimeout(() => useChatStore.getState().setCountdown(false, null), 1500);
+    });
+
+    // Reset tab title when user returns to the tab
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        document.title = 'SpoilerFreeChat';
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // Cleanup on unmount
     return () => {
       // Clear reconnect timeout if pending
@@ -376,6 +414,7 @@ export function useSocket() {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       socket.disconnect();
     };
   }, [setConnected, setReconnecting, setConnectionError, setPendingAutoReconnect, setRoom, clearRoom, setUsers, addUser, removeUser, setMessages, addMessage, setError, setSyncState, updateUserSync]);
@@ -439,12 +478,32 @@ export function useSocket() {
     }
   }, []);
 
+  // Trigger a coordinated countdown sync for the whole room
+  const startCountdown = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.emit('start-countdown');
+    }
+  }, []);
+
+  // Report an abusive message — stored in DB and visible in Supabase dashboard
+  const reportMessage = useCallback((messageContent, messageSenderNickname, onConfirmed) => {
+    if (socketRef.current) {
+      socketRef.current.emit('report-message', { messageContent, messageSenderNickname });
+      // One-time listener for confirmation
+      socketRef.current.once('report-confirmed', () => {
+        if (onConfirmed) onConfirmed();
+      });
+    }
+  }, []);
+
   return {
     socket: socketRef.current,
     joinRoom,
     sendMessage,
     leaveRoom,
-    syncGameTime
+    syncGameTime,
+    reportMessage,
+    startCountdown
   };
 }
 

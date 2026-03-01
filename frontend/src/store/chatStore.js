@@ -178,7 +178,18 @@ const useChatStore = create((set) => ({
     offsetFormatted,
     isBaseline,
     lastSyncTime: Date.now()
-  })
+  }),
+
+  // Countdown sync state — used to show the 3-2-1 overlay in ChatRoom
+  // countdownValue: null (inactive), 3/2/1 (counting), or 0 (SYNC NOW!)
+  countdownActive: false,
+  countdownValue: null,
+  setCountdown: (active, value) => set({ countdownActive: active, countdownValue: value }),
+
+  // Auto-sync trigger — pulses true/false when countdown hits 0
+  // TimeSync watches this prop to auto-submit its form
+  autoSyncTrigger: false,
+  setAutoSyncTrigger: (v) => set({ autoSyncTrigger: v }),
 }));
 
 export default useChatStore;

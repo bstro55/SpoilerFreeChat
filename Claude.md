@@ -80,6 +80,52 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
   - Frontend: https://spoiler-free-chat.vercel.app
   - Backend: https://fresh-charin-brandonorg-fb132fcb.koyeb.app
 
+## ✅ Ship-Ready Feature Set - 2026-03-01
+
+**Goal:** Implement 5 ship-readiness items identified in pre-launch audit.
+
+**What Was Done:**
+
+### Fix: Sync Modal Message Loss
+- When user dismissed the sync modal without completing a sync, their typed message was silently deleted
+- Fixed `handleModalClose` in `ChatRoom.jsx` — if user dismisses without syncing, the message is restored to the input field instead of discarded
+
+### Unsynced State UI Clarity
+- The "sync your game time" banner previously only appeared after messages existed in the room
+- Now shows immediately on room entry with clearer copy: **"Spoiler protection is OFF — messages are arriving with no delay"**
+- Removed the `messages.length > 0` condition from `ChatRoom.jsx`
+
+### Background Tab Notification
+- When a new message arrives in a background browser tab, the tab title changes to "(1) New Message — SpoilerFreeChat"
+- Title resets when the user refocuses the tab
+- Implemented via `document.hidden` check in `useSocket.js` `new-message` handler + `visibilitychange` listener
+
+### Minimum Viable Moderation (Report Button)
+- Added a `Report` model to Prisma schema + migration (`20260301000000_add_reports`)
+- New `report-message` socket event saves reports to DB (visible in Supabase dashboard + backend logs)
+- Flag icon appears on hover over any other user's message in `ChatRoom.jsx`
+- Confirmation dialog before submitting; visual feedback after report is saved
+- No email service required — reports are queryable in Supabase
+
+### Sync Countdown Flow
+- Any room member can trigger a coordinated 3-2-1 countdown via "Countdown Sync" button in the TimeSync sidebar
+- Backend broadcasts `countdown-started` → `countdown-tick` (3, 2, 1) → `sync-now` events to the whole room
+- Frontend shows a full-screen overlay during countdown: "Get your game clock ready... 3... 2... 1... SYNC NOW!"
+- At "SYNC NOW!", all TimeSync forms with pre-filled values auto-submit simultaneously via `autoSyncTrigger` prop
+- `activeCountdowns` map in `server.js` prevents concurrent countdowns per room; cleaned up on graceful shutdown
+
+**Files Modified:**
+- `frontend/src/components/ChatRoom.jsx` — modal fix, banner, report button, countdown overlay
+- `frontend/src/components/TimeSync.jsx` — `trySync` extraction, `autoSyncTrigger` prop, countdown button
+- `frontend/src/hooks/useSocket.js` — tab notification, report/countdown events, `reportMessage`/`startCountdown` fns
+- `frontend/src/store/chatStore.js` — countdown and autoSyncTrigger state
+- `frontend/src/App.jsx` — pass `reportMessage` and `startCountdown` to ChatRoom
+- `backend/server.js` — `report-message` handler, `start-countdown` handler, `activeCountdowns` map, shutdown cleanup
+- `backend/prisma/schema.prisma` — Report model added
+- `backend/prisma/migrations/20260301000000_add_reports/migration.sql` — new migration
+
+---
+
 ## ✅ Phase 2 Growth Features & Engineering Quality - 2026-02-28
 
 **Goal:** Complete the Phase 2 "Early Growth" roadmap items and engineering quality improvements.

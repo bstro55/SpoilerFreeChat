@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import useChatStore from '../store/chatStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,7 @@ import { getSportConfig, getPeriodOptions, formatGameTime, DEFAULT_SPORT } from 
  * - Period durations (12, 15, 20, 45 minutes)
  * - Clock directions (countdown vs countup)
  */
-function TimeSync({ onSync }) {
+function TimeSync({ onSync, autoSyncTrigger, onStartCountdown }) {
   // Get sport type from store (set when joining room)
   const { sportType, sportConfig, isSynced, gameTime, offsetFormatted, isBaseline } = useChatStore();
 
@@ -48,9 +48,8 @@ function TimeSync({ onSync }) {
   });
   const [seconds, setSeconds] = useState(0);
 
-  const handleSync = (e) => {
-    e.preventDefault();
-
+  // Core sync logic — shared between manual submit and countdown auto-trigger
+  const trySync = useCallback(() => {
     const p = parseInt(period, 10);
     const m = parseInt(minutes, 10);
     const s = parseInt(seconds, 10);
@@ -87,7 +86,19 @@ function TimeSync({ onSync }) {
     }
 
     onSync(p, m, s);
+  }, [period, minutes, seconds, config, onSync]);
+
+  const handleSync = (e) => {
+    e.preventDefault();
+    trySync();
   };
+
+  // Auto-submit when countdown fires
+  useEffect(() => {
+    if (autoSyncTrigger) {
+      trySync();
+    }
+  }, [autoSyncTrigger, trySync]);
 
   // Format game time for display using sport-specific formatting
   const displayGameTime = useMemo(() => {
@@ -168,6 +179,22 @@ function TimeSync({ onSync }) {
           <Button type="submit" size="sm" className="w-full">
             {isSynced ? 'Resync' : 'Sync Time'}
           </Button>
+          {onStartCountdown && (
+            <div className="space-y-1 pt-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={onStartCountdown}
+              >
+                Countdown Sync
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Syncs everyone at the same moment
+              </p>
+            </div>
+          )}
         </form>
 
         {isSynced && (

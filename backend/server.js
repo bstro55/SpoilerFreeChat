@@ -236,6 +236,10 @@ function validateRoomMembership(socket) {
   return { valid: true, user };
 }
 
+// Track active sync countdowns per room — prevents concurrent countdowns
+// roomId → interval ID (cleared when countdown finishes)
+const activeCountdowns = new Map();
+
 // Socket.IO connection handling
 io.on('connection', async (socket) => {
   logger.info({ socketId: socket.id }, 'User connected');
@@ -668,6 +672,59 @@ io.on('connection', async (socket) => {
     logger.debug({ roomId, nickname, messagePreview: sanitizedContent.substring(0, 50) }, 'Message sent');
   });
 
+  // Handle message reports
+  socket.on('report-message', async (data) => {
+    if (!socket.roomId || !socket.nickname) return;
+
+    const { messageContent, messageSenderNickname } = data;
+    if (!messageContent || typeof messageContent !== 'string') return;
+
+    try {
+      await prisma.report.create({
+        data: {
+          roomCode: socket.roomId,
+          reporterNickname: socket.nickname,
+          messageContent: messageContent.slice(0, 500),
+          messageSenderNickname: messageSenderNickname || 'Unknown',
+        }
+      });
+      logger.warn(
+        { roomId: socket.roomId, reporter: socket.nickname, sender: messageSenderNickname },
+        'Message reported by user'
+      );
+      socket.emit('report-confirmed');
+    } catch (error) {
+      logger.error({ err: error, event: 'report-message' }, 'Error saving report');
+    }
+  });
+
+  // Handle sync countdown — any room member can trigger a coordinated 3-2-1 sync
+  socket.on('start-countdown', () => {
+    if (!socket.roomId) return;
+    const memberCheck = validateRoomMembership(socket);
+    if (!memberCheck.valid) return;
+
+    // Only one countdown can run per room at a time
+    if (activeCountdowns.has(socket.roomId)) return;
+
+    const roomId = socket.roomId;
+    logger.info({ roomId, triggeredBy: socket.nickname }, 'Sync countdown started');
+    io.to(roomId).emit('countdown-started', { triggeredBy: socket.nickname });
+
+    let count = 3;
+    const interval = setInterval(() => {
+      io.to(roomId).emit('countdown-tick', { count });
+      count--;
+      if (count < 0) {
+        clearInterval(interval);
+        activeCountdowns.delete(roomId);
+        io.to(roomId).emit('sync-now');
+      }
+    }, 1000);
+
+    activeCountdowns.set(roomId, interval);
+  });
+
   // Handle disconnection
   socket.on('disconnect', async () => {
     const roomId = socket.roomId;
@@ -768,6 +825,9 @@ server.listen(PORT, () => {
 // Closes Socket.IO connections, stops accepting HTTP requests, disconnects DB
 async function shutdown(signal) {
   logger.info({ signal }, 'Shutting down gracefully...');
+  // Clear any active countdown intervals
+  for (const [, intervalId] of activeCountdowns) clearInterval(intervalId);
+  activeCountdowns.clear();
   io.close();
   server.close();
   await prisma.$disconnect();

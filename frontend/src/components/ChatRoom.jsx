@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Home, Menu, X, Clock, Copy, Check, Link2 } from 'lucide-react';
+import { Home, Menu, X, Clock, Copy, Check, Link2, Flag } from 'lucide-react';
 import { getSportConfig } from '../lib/sportConfig';
 
 /**
@@ -35,7 +35,7 @@ function formatRelativeSyncTime(timestamp) {
   return `${hours}h ago`;
 }
 
-function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
+function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime, onReportMessage, onStartCountdown }) {
   const [inputValue, setInputValue] = useState('');
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [pendingMessage, setPendingMessage] = useState('');
@@ -43,6 +43,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [reportedMessageIds, setReportedMessageIds] = useState(new Set());
   const [, setTick] = useState(0);  // Force re-render for relative time updates
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -70,7 +71,11 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
     setViewingHome,
     // Room metadata (Phase 11)
     roomName,
-    teams
+    teams,
+    // Countdown sync state
+    countdownActive,
+    countdownValue,
+    autoSyncTrigger,
   } = useChatStore();
 
   // Get sport config for display
@@ -127,8 +132,14 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
     if (isSynced && pendingMessage) {
       onSendMessage(pendingMessage);
       setInputValue('');
+      setPendingMessage('');
+    } else if (pendingMessage) {
+      // User dismissed without syncing — restore their message to the input
+      setInputValue(pendingMessage);
+      setPendingMessage('');
+    } else {
+      setPendingMessage('');
     }
-    setPendingMessage('');
   };
 
   const formatTime = (timestamp) => {
@@ -159,7 +170,32 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
     }
   };
 
+  const handleReport = (message) => {
+    if (reportedMessageIds.has(message.id)) return;
+    const confirmed = window.confirm(
+      `Report this message from ${message.nickname}?\n\n"${message.content.slice(0, 100)}${message.content.length > 100 ? '…' : ''}"`
+    );
+    if (!confirmed) return;
+    onReportMessage(message.content, message.nickname, () => {
+      setReportedMessageIds((prev) => new Set([...prev, message.id]));
+    });
+  };
+
   return (
+    <>
+    {/* Countdown sync overlay — covers the screen during 3-2-1 sync */}
+    {countdownActive && (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 pointer-events-none">
+        <div className="text-center text-white select-none">
+          <p className="text-xl mb-6 opacity-75 font-medium">Get your game clock ready...</p>
+          {countdownValue === 0 ? (
+            <p className="text-6xl font-bold tracking-tight text-primary animate-pulse">SYNC NOW!</p>
+          ) : countdownValue !== null ? (
+            <p className="text-9xl font-bold tabular-nums">{countdownValue}</p>
+          ) : null}
+        </div>
+      </div>
+    )}
     <div className="flex-1 flex flex-col bg-background overflow-hidden">
       {/* Connection Status Banner */}
       {(!isConnected || isReconnecting || connectionError) && (
@@ -312,7 +348,11 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
               </Button>
             </div>
 
-            <TimeSync onSync={onSyncGameTime} />
+            <TimeSync
+              onSync={onSyncGameTime}
+              autoSyncTrigger={autoSyncTrigger}
+              onStartCountdown={onStartCountdown}
+            />
 
             <Card>
               <CardHeader className="py-2 px-3">
@@ -399,7 +439,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
                 messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`max-w-[80%] ${
+                    className={`group relative max-w-[80%] ${
                       message.nickname === nickname ? 'ml-auto' : ''
                     }`}
                   >
@@ -422,6 +462,18 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
                       </div>
                       <p className="text-sm break-words">{message.content}</p>
                     </div>
+                    {/* Report button — only on other people's messages, appears on hover */}
+                    {message.nickname !== nickname && onReportMessage && (
+                      <button
+                        onClick={() => handleReport(message)}
+                        className="absolute -top-1 -right-6 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-muted-foreground hover:text-destructive"
+                        aria-label="Report message"
+                        title={reportedMessageIds.has(message.id) ? 'Reported' : 'Report message'}
+                        disabled={reportedMessageIds.has(message.id)}
+                      >
+                        <Flag className={`h-3 w-3 ${reportedMessageIds.has(message.id) ? 'text-destructive' : ''}`} />
+                      </button>
+                    )}
                   </div>
                 ))
               )}
@@ -442,14 +494,16 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
               </Alert>
             )}
 
-            {!isSynced && messages.length > 0 && (
+            {!isSynced && (
               <Alert>
                 <AlertDescription className="flex items-center justify-between gap-2">
-                  <span className="text-sm">Sync your game time to enable spoiler-free messaging</span>
+                  <span className="text-sm">
+                    <strong>Spoiler protection is OFF</strong> — messages have no delay until you sync.
+                  </span>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="lg:hidden flex-shrink-0"
+                    className="flex-shrink-0"
                     onClick={() => setSidebarOpen(true)}
                   >
                     Sync Now
@@ -532,6 +586,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime }) {
         subtitle="Please sync your game time before sending messages"
       />
     </div>
+    </>
   );
 }
 
