@@ -124,6 +124,31 @@ Two friends are watching the same basketball game. One is on cable TV (minimal d
 - `backend/prisma/schema.prisma` — Report model added
 - `backend/prisma/migrations/20260301000000_add_reports/migration.sql` — new migration
 
+## ✅ Sidebar Polish & Countdown UX - 2026-03-01
+
+**Goal:** Fix sidebar overflowing the viewport after sync, and clarify the Countdown Sync flow.
+
+**What Was Done:**
+
+### TimeSync Card Collapses After Sync
+- After a successful sync, the full form collapses to a single compact row: `Q1 11:47 · Live (no delay) [Resync]`
+- Clicking "Resync" re-expands the full form
+- Implemented via `showForm` state + `prevSyncedRef` to detect the sync transition
+- Saves ~7 rows of vertical space — the main cause of the sidebar scrolling off-screen
+
+### Room Code Section Compacted
+- Previous layout: code on one line, "Copy Code" button, then "Copy Invite Link" full-width button below — 3 rows total
+- New layout: code + two icon-only copy buttons in a single row
+- Saves ~2 rows of vertical space
+
+### Countdown Sync UX Clarified
+- Updated hint text from "Syncs everyone at the same moment" to "Best during a timeout — pre-fill your time above first"
+- Correct flow: pause during a stoppage in play → pre-fill the frozen clock → click Countdown Sync → 3-2-1 → all forms auto-submit simultaneously
+
+**Files Modified:**
+- `frontend/src/components/TimeSync.jsx` — collapsed post-sync state, updated countdown hint
+- `frontend/src/components/ChatRoom.jsx` — compact room code row
+
 ---
 
 ## ✅ Phase 2 Growth Features & Engineering Quality - 2026-02-28
