@@ -118,22 +118,22 @@ function TimeSync({ onSync, autoSyncTrigger, onStartCountdown }) {
 
         {/* Compact synced summary — shown after a successful sync */}
         {isSynced && !showForm && (
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-xs font-medium truncate">{displayGameTime}</span>
-              <Badge variant={isBaseline ? 'default' : 'secondary'} className="text-xs h-5 flex-shrink-0">
-                {offsetFormatted}{isBaseline && ' (Live)'}
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-foreground">{displayGameTime}</p>
+            <div className="flex items-center justify-between gap-2">
+              <Badge variant={isBaseline ? 'default' : 'secondary'} className="text-xs h-5">
+                {isBaseline ? 'Live' : offsetFormatted}
               </Badge>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="text-xs h-6 px-2 flex-shrink-0"
+                onClick={() => setShowForm(true)}
+              >
+                Resync
+              </Button>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="text-xs h-7 px-2 flex-shrink-0"
-              onClick={() => setShowForm(true)}
-            >
-              Resync
-            </Button>
           </div>
         )}
 

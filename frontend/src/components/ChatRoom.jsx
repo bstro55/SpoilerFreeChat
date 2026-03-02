@@ -341,32 +341,26 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime, onReportMessage,
               <CardContent className="py-2 px-3">
                 <ul className="space-y-2">
                   {users.map((user) => (
-                    <li
-                      key={user.id}
-                      className={`text-sm ${
-                        user.nickname === nickname ? 'font-medium' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="truncate">
-                          {user.nickname}
-                          {user.nickname === nickname && (
-                            <span className="text-muted-foreground"> (you)</span>
-                          )}
-                        </span>
+                    <li key={user.id} className="text-sm">
+                      <p className={`leading-snug ${user.nickname === nickname ? 'font-medium' : ''}`}>
+                        {user.nickname}
+                        {user.nickname === nickname && (
+                          <span className="text-muted-foreground font-normal"> (you)</span>
+                        )}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
                         <Badge
                           variant={user.isSynced ? 'default' : 'secondary'}
-                          className="text-xs flex-shrink-0 ml-2"
+                          className="text-xs"
                         >
                           {user.isSynced ? user.offsetFormatted : 'Not synced'}
                         </Badge>
+                        {user.isSynced && user.syncedAt && (
+                          <span className="text-xs text-muted-foreground">
+                            {formatRelativeSyncTime(user.syncedAt)}
+                          </span>
+                        )}
                       </div>
-                      {/* Show when user last synced */}
-                      {user.isSynced && user.syncedAt && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          synced {formatRelativeSyncTime(user.syncedAt)}
-                        </p>
-                      )}
                     </li>
                   ))}
                 </ul>
