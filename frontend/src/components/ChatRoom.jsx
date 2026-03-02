@@ -300,51 +300,31 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime, onReportMessage,
           </div>
 
           <div className="p-3 flex-1 overflow-y-auto space-y-3">
-            {/* Room Code */}
-            <div className="px-1 space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">Room Code</p>
-                  <code className="font-mono text-sm font-semibold">{roomId}</code>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 gap-1"
-                  onClick={copyRoomCode}
-                  aria-label="Copy room code"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-3 w-3 text-green-500" />
-                      <span className="text-xs">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3 w-3" />
-                      <span className="text-xs">Copy Code</span>
-                    </>
-                  )}
-                </Button>
+            {/* Room Code — compact single row */}
+            <div className="flex items-center gap-1.5 px-1">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground leading-none mb-0.5">Room Code</p>
+                <code className="font-mono text-sm font-semibold">{roomId}</code>
               </div>
               <Button
-                variant="secondary"
+                variant="outline"
                 size="sm"
-                className="w-full h-7 gap-1 text-xs"
+                className="h-7 px-2 gap-1 flex-shrink-0"
+                onClick={copyRoomCode}
+                aria-label="Copy room code"
+                title="Copy room code"
+              >
+                {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 gap-1 flex-shrink-0"
                 onClick={copyInviteLink}
                 aria-label="Copy invite link"
+                title="Copy invite link"
               >
-                {linkCopied ? (
-                  <>
-                    <Check className="h-3 w-3 text-green-500" />
-                    Link Copied!
-                  </>
-                ) : (
-                  <>
-                    <Link2 className="h-3 w-3" />
-                    Copy Invite Link
-                  </>
-                )}
+                {linkCopied ? <Check className="h-3 w-3 text-green-500" /> : <Link2 className="h-3 w-3" />}
               </Button>
             </div>
 

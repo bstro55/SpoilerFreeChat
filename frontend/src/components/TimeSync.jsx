@@ -1,9 +1,9 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import useChatStore from '../store/chatStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -43,10 +43,20 @@ function TimeSync({ onSync, autoSyncTrigger, onStartCountdown }) {
   // Initialize with appropriate defaults based on clock direction
   const [period, setPeriod] = useState('1');
   const [minutes, setMinutes] = useState(() => {
-    // Countdown sports start at max time, countup sports start at 0
     return config.clockDirection === 'down' ? config.periodDurationMinutes : 0;
   });
   const [seconds, setSeconds] = useState(0);
+
+  // After syncing, collapse the form to a compact one-line summary.
+  // showForm=true when unsynced (user needs to fill it in), false after a successful sync.
+  const [showForm, setShowForm] = useState(!isSynced);
+  const prevSyncedRef = useRef(isSynced);
+  useEffect(() => {
+    if (isSynced && !prevSyncedRef.current) {
+      setShowForm(false); // just synced — collapse
+    }
+    prevSyncedRef.current = isSynced;
+  }, [isSynced]);
 
   // Core sync logic — shared between manual submit and countdown auto-trigger
   const trySync = useCallback(() => {
@@ -54,31 +64,24 @@ function TimeSync({ onSync, autoSyncTrigger, onStartCountdown }) {
     const m = parseInt(minutes, 10);
     const s = parseInt(seconds, 10);
 
-    // Validate period based on sport
     if (p < 1 || p > config.periods) {
       alert(`${config.periodLabel} must be 1-${config.periods}`);
       return;
     }
-
-    // Validate seconds (same for all sports)
     if (s < 0 || s > 59) {
       alert('Seconds must be 0-59');
       return;
     }
-
-    // Validate minutes based on clock direction
     if (config.clockDirection === 'down') {
       if (m < 0 || m > config.periodDurationMinutes) {
         alert(`Minutes must be 0-${config.periodDurationMinutes}`);
         return;
       }
-      // Full duration only valid with 0 seconds
       if (m === config.periodDurationMinutes && s > 0) {
         alert(`Time cannot exceed ${config.periodDurationMinutes}:00`);
         return;
       }
     } else {
-      // Countup (soccer): allow up to maxMinutes for stoppage time
       if (m < 0 || m > config.maxMinutes) {
         alert(`Minutes must be 0-${config.maxMinutes}`);
         return;
@@ -110,119 +113,108 @@ function TimeSync({ onSync, autoSyncTrigger, onStartCountdown }) {
     <Card>
       <CardHeader className="py-2 px-3">
         <CardTitle className="text-sm">Sync Game Time</CardTitle>
-        <CardDescription className="text-xs">
-          Enter the time shown on your broadcast
-        </CardDescription>
       </CardHeader>
       <CardContent className="py-2 px-3 space-y-2">
-        <form onSubmit={handleSync} className="space-y-2">
-          <div className="flex items-end gap-2">
-            {/* Period Selector - Dynamic based on sport */}
-            <div className="space-y-1 flex-1 min-w-0">
-              <Label htmlFor="period" className="text-xs">
-                {config.periodLabel}
-              </Label>
-              <Select value={period} onValueChange={setPeriod}>
-                <SelectTrigger className="w-full h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {periodOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
-            {/* Minutes Input - Dynamic max based on sport */}
-            <div className="space-y-1 flex-1 min-w-0">
-              <Label htmlFor="minutes" className="text-xs">Min</Label>
-              <Input
-                type="number"
-                id="minutes"
-                min="0"
-                max={config.clockDirection === 'down'
-                  ? config.periodDurationMinutes
-                  : config.maxMinutes}
-                value={minutes}
-                onChange={(e) => setMinutes(e.target.value)}
-                className="w-full h-9"
-              />
-            </div>
-
-            <span className="text-lg font-bold mb-1 flex-shrink-0">:</span>
-
-            {/* Seconds Input - Same for all sports */}
-            <div className="space-y-1 flex-1 min-w-0">
-              <Label htmlFor="seconds" className="text-xs">Sec</Label>
-              <Input
-                type="number"
-                id="seconds"
-                min="0"
-                max="59"
-                value={seconds}
-                onChange={(e) => setSeconds(e.target.value)}
-                className="w-full h-9"
-              />
-            </div>
-          </div>
-
-          {/* Clock direction hint */}
-          <p className="text-xs text-muted-foreground">
-            {config.clockDirection === 'down'
-              ? 'Enter time remaining (clock counts down)'
-              : 'Enter elapsed time (clock counts up)'}
-          </p>
-
-          <Button type="submit" size="sm" className="w-full">
-            {isSynced ? 'Resync' : 'Sync Time'}
-          </Button>
-          {onStartCountdown && (
-            <div className="space-y-1 pt-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="w-full"
-                onClick={onStartCountdown}
-              >
-                Countdown Sync
-              </Button>
-              <p className="text-xs text-muted-foreground text-center">
-                Syncs everyone at the same moment
-              </p>
-            </div>
-          )}
-        </form>
-
-        {isSynced && (
-          <div className="space-y-1.5 pt-2 border-t text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground text-xs">Game time:</span>
-              <span className="font-medium text-xs">{displayGameTime}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground text-xs">Your delay:</span>
-              <Badge variant={isBaseline ? 'default' : 'secondary'} className="text-xs h-5">
-                {offsetFormatted}
-                {isBaseline && ' (Live)'}
+        {/* Compact synced summary — shown after a successful sync */}
+        {isSynced && !showForm && (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-xs font-medium truncate">{displayGameTime}</span>
+              <Badge variant={isBaseline ? 'default' : 'secondary'} className="text-xs h-5 flex-shrink-0">
+                {offsetFormatted}{isBaseline && ' (Live)'}
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {isBaseline
-                ? "You're the fastest viewer - messages arrive instantly."
-                : `Messages held for ${offsetFormatted} to avoid spoilers.`}
-            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="text-xs h-7 px-2 flex-shrink-0"
+              onClick={() => setShowForm(true)}
+            >
+              Resync
+            </Button>
           </div>
         )}
 
-        {!isSynced && (
-          <p className="text-xs text-muted-foreground text-center pt-2">
-            Sync to enable spoiler-free chat
-          </p>
+        {/* Full form — shown when unsynced or when user clicks Resync */}
+        {showForm && (
+          <form onSubmit={handleSync} className="space-y-2">
+            <div className="flex items-end gap-2">
+              <div className="space-y-1 flex-1 min-w-0">
+                <Label htmlFor="period" className="text-xs">{config.periodLabel}</Label>
+                <Select value={period} onValueChange={setPeriod}>
+                  <SelectTrigger className="w-full h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {periodOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1 flex-1 min-w-0">
+                <Label htmlFor="minutes" className="text-xs">Min</Label>
+                <Input
+                  type="number"
+                  id="minutes"
+                  min="0"
+                  max={config.clockDirection === 'down' ? config.periodDurationMinutes : config.maxMinutes}
+                  value={minutes}
+                  onChange={(e) => setMinutes(e.target.value)}
+                  className="w-full h-9"
+                />
+              </div>
+
+              <span className="text-lg font-bold mb-1 flex-shrink-0">:</span>
+
+              <div className="space-y-1 flex-1 min-w-0">
+                <Label htmlFor="seconds" className="text-xs">Sec</Label>
+                <Input
+                  type="number"
+                  id="seconds"
+                  min="0"
+                  max="59"
+                  value={seconds}
+                  onChange={(e) => setSeconds(e.target.value)}
+                  className="w-full h-9"
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              {config.clockDirection === 'down'
+                ? 'Enter time remaining (clock counts down)'
+                : 'Enter elapsed time (clock counts up)'}
+            </p>
+
+            <Button type="submit" size="sm" className="w-full">
+              {isSynced ? 'Resync' : 'Sync Time'}
+            </Button>
+
+            {onStartCountdown && (
+              <div className="space-y-1 pt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={onStartCountdown}
+                >
+                  Countdown Sync
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Best during a timeout — pre-fill your time above first
+                </p>
+              </div>
+            )}
+          </form>
         )}
+
       </CardContent>
     </Card>
   );
