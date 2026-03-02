@@ -339,7 +339,7 @@ function ChatRoom({ onSendMessage, onLeaveRoom, onSyncGameTime, onReportMessage,
                 <CardTitle className="text-sm">In This Room</CardTitle>
               </CardHeader>
               <CardContent className="py-2 px-3">
-                <ul className="space-y-2">
+                <ul className="space-y-1">
                   {users.map((user) => (
                     <li key={user.id} className="text-sm">
                       <p className={`leading-snug ${user.nickname === nickname ? 'font-medium' : ''}`}>
